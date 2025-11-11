@@ -102,68 +102,30 @@
       </div>
 
       <!-- Search -->
-      <div class="flex items-center space-x-2">
-        <input type="text" placeholder="Search builders, plans, elevations..." class="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500 focus:outline-none" />
-        <button class="border border-gray-300 rounded-md px-3 py-2 text-sm hover:bg-gray-100">🔍</button>
-      </div>
+<div class="flex items-center space-x-2">
+  <input
+    id="builder-search"
+    type="text"
+    placeholder="Search builders..."
+    class="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500 focus:outline-none"
+  />
+  <select
+    id="division-filter"
+    class="border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500 focus:outline-none"
+  >
+    <option value="">All Divisions</option>
+  </select>
+</div>
 
-      <!-- Builder List -->
-      <div class="bg-card border border-border rounded-lg p-4 space-y-3">
-        <!-- Builder Item -->
-        <div class="border border-border rounded-lg p-4 flex justify-between items-center">
-          <div>
-            <div class="font-semibold text-lg">Lansing Building Products - Drb - Miller Farm</div>
-            <p class="text-xs text-muted-foreground">1 plan · Created Nov 10, 2025</p>
-          </div>
-          <button class="border border-gray-300 rounded-md px-3 py-1 text-xs hover:bg-gray-100">+ Add Plan</button>
-        </div>
+<!-- Builder List -->
+<div id="builder-list" class="bg-card border border-border rounded-lg p-4 space-y-3">
+  <p class="text-gray-500 text-sm text-center py-4">Loading builders...</p>
+</div>
 
-        <div class="border border-border rounded-lg p-4 flex justify-between items-center">
-          <div>
-            <div class="font-semibold text-lg">The Stars</div>
-            <p class="text-xs text-muted-foreground">1 plan · Created Nov 04, 2025</p>
-          </div>
-          <button class="border border-gray-300 rounded-md px-3 py-1 text-xs hover:bg-gray-100">+ Add Plan</button>
-        </div>
+<script src="nav.js"></script>
+<script src="auth.js"></script>
+<script src="builder.js"></script>
 
-        <div class="border border-border rounded-lg p-4 flex justify-between items-center">
-          <div>
-            <div class="font-semibold text-lg">Rashad Stout</div>
-            <p class="text-xs text-muted-foreground">1 plan · Created Nov 03, 2025</p>
-          </div>
-          <button class="border border-gray-300 rounded-md px-3 py-1 text-xs hover:bg-gray-100">+ Add Plan</button>
-        </div>
-
-        <div class="border border-border rounded-lg p-4 flex justify-between items-center">
-          <div>
-            <div class="font-semibold text-lg">Lannar</div>
-            <p class="text-xs text-muted-foreground">1 plan · Created Oct 31, 2025</p>
-          </div>
-          <button class="border border-gray-300 rounded-md px-3 py-1 text-xs hover:bg-gray-100">+ Add Plan</button>
-        </div>
-
-        <div class="border border-border rounded-lg p-4 flex justify-between items-center">
-          <div>
-            <div class="font-semibold text-lg">Test Builder 2</div>
-            <p class="text-xs text-muted-foreground">2 plans · Created Oct 22, 2025</p>
-          </div>
-          <button class="border border-gray-300 rounded-md px-3 py-1 text-xs hover:bg-gray-100">+ Add Plan</button>
-        </div>
-
-        <!-- Footer -->
-        <div class="flex justify-between items-center text-xs text-muted-foreground mt-4">
-          <span>Total Records: 18</span>
-          <div class="flex items-center space-x-2">
-            <span>1 / 4</span>
-            <button class="border border-border rounded-md px-2 py-1 hover:bg-accent">&rarr;</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </main>
-
-  <script src="nav.js"></script>
-  <script src="auth.js"></script>
 
 </body>
 </html>
