@@ -11,10 +11,7 @@
   <!-- Sidebar -->
   <aside class="fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 flex flex-col">
     <div class="flex items-center h-16 px-6 border-b border-gray-200">
-      <div id="nav-logo"
-           class="bg-black text-white w-8 h-8 flex items-center justify-center rounded-md font-semibold cursor-pointer">
-        V
-      </div>
+      <div id="nav-logo" class="bg-black text-white w-8 h-8 flex items-center justify-center rounded-md font-semibold cursor-pointer">V</div>
       <div class="ml-3">
         <h1 class="text-sm font-bold leading-tight">Vanir Volcano</h1>
         <p class="text-xs text-gray-500">Construction Estimating</p>
@@ -22,50 +19,24 @@
     </div>
 
     <nav class="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
-      <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">
-        <span>🏠 Dashboard</span>
-      </button>
-      <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">
-        <span>📄 Takeoffs</span>
-      </button>
-      <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">
-        <span>👷 Builders</span>
-      </button>
-      <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">
-        <span>🏘️ Communities</span>
-      </button>
-      <button id="nav-sku" class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm bg-gray-100 font-semibold">
-        <span>📦 SKU Database</span>
-      </button>
-      <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">
-        <span>🏗️ Vendors</span>
-      </button>
-      <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">
-        <span>📊 Reports</span>
-      </button>
-      <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">
-        <span>🕓 Recent Activity</span>
-      </button>
+      <button onclick="window.location.href='index.html'" class="w-full flex items-center px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">🏠 Dashboard</button>
+      <button onclick="window.location.href='takeoff.html'" class="w-full flex items-center px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">📄 Takeoffs</button>
+      <button onclick="window.location.href='builder.html'" class="w-full flex items-center px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">👷 Builders</button>
+      <button onclick="window.location.href='communities.html'" class="w-full flex items-center px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">🏘️ Communities</button>
+      <button class="w-full flex items-center px-3 py-2 rounded-md text-sm bg-gray-100 font-semibold text-black">📦 SKU Database</button>
+      <button onclick="window.location.href='vendor.html'" class="w-full flex items-center px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">🏗️ Vendors</button>
+      <button onclick="window.location.href='report.html'" class="w-full flex items-center px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">📊 Reports</button>
+      <button onclick="window.location.href='recent-activity.html'" class="w-full flex items-center px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">🕓 Recent Activity</button>
 
-      <div class="pt-6 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-        Administration
-      </div>
-
-      <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">
-        <span>👤 User Management</span>
-      </button>
-      <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">
-        <span>🛡️ Permission Management</span>
-      </button>
-      <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">
-        <span>🎨 Color Group</span>
-      </button>
+      <div class="pt-6 text-xs font-semibold text-gray-500 uppercase tracking-wide">Administration</div>
+      <button onclick="window.location.href='admin.html'" class="w-full flex items-center px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">👤 User Management</button>
+      <button onclick="window.location.href='permission.html'" class="w-full flex items-center px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">🛡️ Permission Management</button>
+      <button onclick="window.location.href='colorgroup.html'" class="w-full flex items-center px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">🎨 Color Group</button>
     </nav>
   </aside>
 
   <!-- Main Content -->
   <main class="ml-64 min-h-screen flex flex-col">
-    <!-- Header -->
     <header class="flex justify-end items-center h-16 border-b border-gray-200 bg-white px-6">
       <div class="flex items-center space-x-3">
         <div class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center font-medium text-gray-700">RM</div>
@@ -75,139 +46,39 @@
 
     <!-- Page Content -->
     <div class="flex-1 p-6 space-y-6">
-      <!-- Breadcrumb -->
-      <div class="text-sm text-gray-500">
-        Dashboard <span class="mx-1">/</span> SKU Database
-      </div>
+      <div class="text-sm text-gray-500">Dashboard <span class="mx-1">/</span> SKU Database</div>
 
-      <!-- Page Title -->
       <div class="flex items-center justify-between">
         <div>
           <h1 class="text-2xl font-bold text-gray-900">SKU Database</h1>
-          <p class="text-sm text-gray-500 mt-1">
-            Manage construction material and labor SKUs for takeoff calculations
-          </p>
-        </div>
-        <div class="space-x-2">
-          <button class="border border-gray-300 rounded-md px-3 py-1.5 text-sm hover:bg-gray-100 transition">
-            📤 Export
-          </button>
-          <button class="border border-gray-300 rounded-md px-3 py-1.5 text-sm hover:bg-gray-100 transition">
-            📥 Import
-          </button>
-          <button class="bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-800 transition">
-            + Add SKU
-          </button>
+          <p class="text-sm text-gray-500 mt-1">Live connection to Google Sheets</p>
         </div>
       </div>
 
-      <!-- Stats -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div class="bg-white border border-gray-200 rounded-lg p-4">
-          <p class="text-sm text-gray-500 font-medium">Total SKUs</p>
-          <p class="text-3xl font-bold mt-2">172</p>
-          <p class="text-xs text-gray-400 mt-1">All SKUs in database</p>
-        </div>
-        <div class="bg-white border border-gray-200 rounded-lg p-4">
-          <p class="text-sm text-gray-500 font-medium">Active SKUs</p>
-          <p class="text-3xl font-bold mt-2">172</p>
-          <p class="text-xs text-gray-400 mt-1">Available for takeoffs</p>
-        </div>
-        <div class="bg-white border border-gray-200 rounded-lg p-4">
-          <p class="text-sm text-gray-500 font-medium">Material SKUs</p>
-          <p class="text-3xl font-bold mt-2">100</p>
-          <p class="text-xs text-gray-400 mt-1">Physical materials</p>
-        </div>
-        <div class="bg-white border border-gray-200 rounded-lg p-4">
-          <p class="text-sm text-gray-500 font-medium">Labor SKUs</p>
-          <p class="text-3xl font-bold mt-2">72</p>
-          <p class="text-xs text-gray-400 mt-1">Labor categories</p>
-        </div>
-      </div>
-
-      <!-- Filters -->
       <div class="bg-white border border-gray-200 rounded-lg p-4">
-        <h2 class="text-sm font-semibold text-gray-600 mb-4">Filters & Search</h2>
-        <div class="grid grid-cols-3 gap-4">
-          <input
-            type="text"
-            placeholder="Search by SKU code or description..."
-            class="col-span-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500 focus:outline-none"
-          />
-          <select class="col-span-1 border border-gray-300 rounded-md px-3 py-2 text-sm">
-            <option>Select Category</option>
-            <option>Material</option>
-            <option>Labor</option>
-          </select>
-          <select class="col-span-1 border border-gray-300 rounded-md px-3 py-2 text-sm">
-            <option>Select Status</option>
-            <option>Active</option>
-            <option>Inactive</option>
-          </select>
-        </div>
-      </div>
+  <input
+    id="sku-search"
+    type="text"
+    placeholder="Search SKUs..."
+    class="w-full mb-4 border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500 focus:outline-none"
+  />
 
-      <!-- Table -->
-      <div class="bg-white border border-gray-200 rounded-lg p-4">
-        <div class="flex justify-between items-center mb-3 text-sm text-gray-500">
-          <span>5 of 172 SKUs</span>
-          <span>Sorted by SKU Code</span>
-        </div>
-        <table class="min-w-full text-sm">
-          <thead class="border-b text-gray-500 font-semibold">
-            <tr>
-              <th class="text-left py-2 px-3">SKU Code</th>
-              <th class="text-left py-2 px-3">Description</th>
-              <th class="text-left py-2 px-3">Category</th>
-              <th class="text-left py-2 px-3">UOM</th>
-              <th class="text-left py-2 px-3">Vendors</th>
-              <th class="text-right py-2 px-3">Best Price</th>
-              <th class="text-right py-2 px-3">Effective Date</th>
-              <th class="text-right py-2 px-3">Status</th>
-              <th class="text-right py-2 px-3">Actions</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y">
-            <tr>
-              <td class="py-3 px-3 font-medium text-gray-800">TEST SKU -123</td>
-              <td class="py-3 px-3">Officia culpa provid</td>
-              <td class="py-3 px-3"><span class="px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded-md">Labor</span></td>
-              <td class="py-3 px-3">EA</td>
-              <td class="py-3 px-3 text-gray-500 text-xs">1 Summit Stairs</td>
-              <td class="py-3 px-3 text-right">$20.00</td>
-              <td class="py-3 px-3 text-right text-xs text-gray-500">Jul 30, 2025</td>
-              <td class="py-3 px-3 text-right">
-                <span class="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-md">Active</span>
-              </td>
-              <td class="py-3 px-3 text-right">⋮</td>
-            </tr>
-            <tr>
-              <td class="py-3 px-3 font-medium text-gray-800">WCH84X610</td>
-              <td class="py-3 px-3">FYPON CROSSHEAD 84X6X3 SMOOTH</td>
-              <td class="py-3 px-3"><span class="px-2 py-1 bg-black text-white text-xs rounded-md">Material</span></td>
-              <td class="py-3 px-3">EA</td>
-              <td class="py-3 px-3 text-gray-500 text-xs">1 Summit Stairs</td>
-              <td class="py-3 px-3 text-right">$92.45</td>
-              <td class="py-3 px-3 text-right text-xs text-gray-500">Nov 18, 2025</td>
-              <td class="py-3 px-3 text-right">
-                <span class="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-md">Active</span>
-              </td>
-              <td class="py-3 px-3 text-right">⋮</td>
-            </tr>
-          </tbody>
-        </table>
+  <div class="overflow-x-auto">
+    <table class="min-w-full text-sm border-collapse border border-gray-200">
+      <thead>
+        <tr id="sku-header-row"></tr>
+      </thead>
+      <tbody id="sku-table-body"></tbody>
+    </table>
+  </div>
+</div>
 
-        <div class="flex justify-between items-center text-xs text-gray-500 mt-4">
-          <span>Total Records: 172</span>
-          <div class="flex items-center space-x-2">
-            <span>1 / 35</span>
-            <button class="border rounded-md px-2 py-1 hover:bg-gray-100">&rarr;</button>
-          </div>
-        </div>
-      </div>
-    </div>
   </main>
+
+  <script src="sku-database.js"></script>
     <script src="nav.js"></script>
-  <script src="auth.js"></script>
+      <script src="auth.js"></script>
+
+
 </body>
 </html>
