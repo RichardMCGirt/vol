@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Permission Management | Vanir Volcano</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans">
+
+  <!-- Sidebar -->
+  <aside class="fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 flex flex-col">
+    <div class="flex items-center h-16 px-6 border-b border-gray-200">
+      <div id="nav-logo" class="bg-black text-white w-8 h-8 flex items-center justify-center rounded-md font-semibold cursor-pointer">
+        V
+      </div>
+      <div class="ml-3">
+        <h1 class="text-sm font-bold leading-tight">Vanir Volcano</h1>
+        <p class="text-xs text-gray-500">Construction Estimating</p>
+      </div>
+    </div>
+
+    <nav class="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
+      <button id="nav-dashboard" class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">
+        🏠 Dashboard
+      </button>
+      <button id="nav-takeoffs" class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">
+        📄 Takeoffs
+      </button>
+      <button id="nav-builders" class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">
+        👷 Builders
+      </button>
+      <button id="nav-communities" class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">
+        🏘️ Communities
+      </button>
+      <button id="nav-sku" class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">
+        📦 SKU Database
+      </button>
+      <button id="nav-vendors" class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">
+        🏗️ Vendors
+      </button>
+      <button id="nav-reports" class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">
+        📊 Reports
+      </button>
+      <button id="nav-activity" class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">
+        🕓 Recent Activity
+      </button>
+
+      <div class="pt-6 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+        Administration
+      </div>
+
+      <button id="nav-admin" class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">
+        👤 User Management
+      </button>
+      <button id="nav-permissions" class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm bg-gray-100 font-semibold">
+        🛡️ Permission Management
+      </button>
+      <button id="nav-color" class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">
+        🎨 Color Group
+      </button>
+    </nav>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="ml-64 min-h-screen flex flex-col">
+    <!-- Header -->
+    <header class="flex justify-end items-center h-16 border-b border-gray-200 bg-white px-6">
+      <div class="flex items-center space-x-3">
+        <div class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center font-medium text-gray-700">RM</div>
+        <span class="text-sm font-medium">Richard Mcgirt</span>
+        <button id="logout-btn" class="text-xs text-gray-500 hover:text-red-600 transition">Logout</button>
+      </div>
+    </header>
+
+    <!-- Page Content -->
+    <div class="flex-1 p-6 space-y-6">
+      <div class="text-sm text-gray-500">Dashboard / Permission Management</div>
+
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">Permission Management</h1>
+        <p class="text-sm text-gray-500 mt-1">Manage roles, permissions, and access control for the platform</p>
+      </div>
+
+      <!-- Role Stats -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="bg-white border border-gray-200 rounded-lg p-4">
+          <p class="text-sm text-gray-500 font-medium">Administrators</p>
+          <p class="text-3xl font-bold mt-2 text-red-500">9</p>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg p-4">
+          <p class="text-sm text-gray-500 font-medium">Estimators</p>
+          <p class="text-3xl font-bold mt-2 text-blue-600">7</p>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg p-4">
+          <p class="text-sm text-gray-500 font-medium">Viewers</p>
+          <p class="text-3xl font-bold mt-2 text-green-600">7</p>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg p-4">
+          <p class="text-sm text-gray-500 font-medium">Total Users</p>
+          <p class="text-3xl font-bold mt-2">23</p>
+        </div>
+      </div>
+
+      <!-- Permission Matrix -->
+      <div class="bg-white border border-gray-200 rounded-lg p-4">
+        <h2 class="text-lg font-semibold mb-4">Permission Matrix</h2>
+        <p class="text-sm text-gray-500 mb-6">
+          Configure role-based access controls for all platform modules
+        </p>
+
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-sm border border-gray-200">
+            <thead class="bg-gray-50 border-b">
+              <tr>
+                <th class="py-3 px-4 text-left font-semibold text-gray-700">Module</th>
+                <th class="py-3 px-4 text-center font-semibold text-gray-700">Admin</th>
+                <th class="py-3 px-4 text-center font-semibold text-gray-700">Estimator</th>
+                <th class="py-3 px-4 text-center font-semibold text-gray-700">Viewer</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y">
+              <tr>
+                <td class="py-3 px-4 font-medium text-gray-700">User Management</td>
+                <td class="text-center"><input type="checkbox" checked></td>
+                <td class="text-center"><input type="checkbox"></td>
+                <td class="text-center"><input type="checkbox" disabled></td>
+              </tr>
+              <tr>
+                <td class="py-3 px-4 font-medium text-gray-700">Builder Management</td>
+                <td class="text-center"><input type="checkbox" checked></td>
+                <td class="text-center"><input type="checkbox" checked></td>
+                <td class="text-center"><input type="checkbox" disabled></td>
+              </tr>
+              <tr>
+                <td class="py-3 px-4 font-medium text-gray-700">Community Management</td>
+                <td class="text-center"><input type="checkbox" checked></td>
+                <td class="text-center"><input type="checkbox" checked></td>
+                <td class="text-center"><input type="checkbox" disabled></td>
+              </tr>
+              <tr>
+                <td class="py-3 px-4 font-medium text-gray-700">SKU Database</td>
+                <td class="text-center"><input type="checkbox" checked></td>
+                <td class="text-center"><input type="checkbox" checked></td>
+                <td class="text-center"><input type="checkbox"></td>
+              </tr>
+              <tr>
+                <td class="py-3 px-4 font-medium text-gray-700">Vendor Management</td>
+                <td class="text-center"><input type="checkbox" checked></td>
+                <td class="text-center"><input type="checkbox" checked></td>
+                <td class="text-center"><input type="checkbox"></td>
+              </tr>
+              <tr>
+                <td class="py-3 px-4 font-medium text-gray-700">Reports & Analytics</td>
+                <td class="text-center"><input type="checkbox" checked></td>
+                <td class="text-center"><input type="checkbox" checked></td>
+                <td class="text-center"><input type="checkbox"></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Permission Summary -->
+      <div class="text-xs text-gray-500 mt-4">Permission Summary: Overview of all access roles.</div>
+    </div>
+  </main>
+
+  <script src="nav.js"></script>
+  <script src="auth.js"></script>
+</body>
+</html>

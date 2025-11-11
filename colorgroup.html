@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Color Groups | Vanir Volcano</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans">
+
+  <!-- Sidebar -->
+  <aside class="fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 flex flex-col">
+    <div class="flex items-center h-16 px-6 border-b border-gray-200">
+      <div id="nav-logo" class="bg-black text-white w-8 h-8 flex items-center justify-center rounded-md font-semibold cursor-pointer">
+        V
+      </div>
+      <div class="ml-3">
+        <h1 class="text-sm font-bold leading-tight">Vanir Volcano</h1>
+        <p class="text-xs text-gray-500">Construction Estimating</p>
+      </div>
+    </div>
+
+    <nav class="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
+      <button id="nav-dashboard" class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">
+        🏠 Dashboard
+      </button>
+      <button id="nav-takeoffs" class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">
+        📄 Takeoffs
+      </button>
+      <button id="nav-builders" class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">
+        👷 Builders
+      </button>
+      <button id="nav-communities" class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">
+        🏘️ Communities
+      </button>
+      <button id="nav-sku" class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">
+        📦 SKU Database
+      </button>
+      <button id="nav-vendors" class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">
+        🏗️ Vendors
+      </button>
+      <button id="nav-reports" class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">
+        📊 Reports
+      </button>
+      <button id="nav-activity" class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">
+        🕓 Recent Activity
+      </button>
+
+      <div class="pt-6 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+        Administration
+      </div>
+
+      <button id="nav-admin" class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">
+        👤 User Management
+      </button>
+      <button id="nav-permissions" class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">
+        🛡️ Permission Management
+      </button>
+      <button id="nav-color" class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm bg-gray-100 font-semibold">
+        🎨 Color Group
+      </button>
+    </nav>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="ml-64 min-h-screen flex flex-col">
+    <!-- Header -->
+    <header class="flex justify-end items-center h-16 border-b border-gray-200 bg-white px-6">
+      <div class="flex items-center space-x-3">
+        <div class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center font-medium text-gray-700">RM</div>
+        <span class="text-sm font-medium">Richard Mcgirt</span>
+        <button id="logout-btn" class="text-xs text-gray-500 hover:text-red-600 transition">Logout</button>
+      </div>
+    </header>
+
+    <!-- Page Content -->
+    <div class="flex-1 p-6 space-y-6">
+      <div class="text-sm text-gray-500">Dashboard / Color Group</div>
+
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900">Color Groups</h1>
+          <p class="text-sm text-gray-500 mt-1">View and manage color groups</p>
+        </div>
+        <button class="bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-800 transition">+ Add New</button>
+      </div>
+
+      <!-- Summary -->
+      <div class="bg-white border border-gray-200 rounded-lg p-4">
+        <p class="text-sm text-gray-500 font-medium">Total Color Groups</p>
+        <p class="text-3xl font-bold mt-2">4</p>
+      </div>
+
+      <!-- Search -->
+      <div>
+        <input type="text" placeholder="Search by color group name..." class="border border-gray-300 rounded-md px-4 py-2 w-80 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+      </div>
+
+      <!-- Color Group List -->
+      <div class="space-y-4">
+        <!-- Color Group Item -->
+        <div class="bg-white border border-gray-200 rounded-lg p-4">
+          <div class="flex justify-between items-center mb-2">
+            <h3 class="font-semibold text-gray-800">Test Color Group 1</h3>
+            <div class="space-x-2">
+              <button class="px-3 py-1 text-xs bg-gray-100 border border-gray-300 rounded hover:bg-gray-200">✏️ Edit</button>
+              <button class="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600">🗑 Delete</button>
+            </div>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <span class="px-3 py-1 text-xs bg-red-100 text-red-600 rounded-full">Red</span>
+            <span class="px-3 py-1 text-xs bg-blue-100 text-blue-600 rounded-full">Blue</span>
+          </div>
+        </div>
+
+        <div class="bg-white border border-gray-200 rounded-lg p-4">
+          <div class="flex justify-between items-center mb-2">
+            <h3 class="font-semibold text-gray-800">Soffit</h3>
+            <div class="space-x-2">
+              <button class="px-3 py-1 text-xs bg-gray-100 border border-gray-300 rounded hover:bg-gray-200">✏️ Edit</button>
+              <button class="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600">🗑 Delete</button>
+            </div>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <span class="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded-full">Lap Main Body</span>
+          </div>
+        </div>
+
+        <div class="bg-white border border-gray-200 rounded-lg p-4">
+          <div class="flex justify-between items-center mb-2">
+            <h3 class="font-semibold text-gray-800">Trim</h3>
+            <div class="space-x-2">
+              <button class="px-3 py-1 text-xs bg-gray-100 border border-gray-300 rounded hover:bg-gray-200">✏️ Edit</button>
+              <button class="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600">🗑 Delete</button>
+            </div>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <span class="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded-full">Soffit</span>
+            <span class="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded-full">N/A</span>
+            <span class="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded-full">Trim</span>
+          </div>
+        </div>
+
+        <div class="bg-white border border-gray-200 rounded-lg p-4">
+          <div class="flex justify-between items-center mb-2">
+            <h3 class="font-semibold text-gray-800">Lap Main Body</h3>
+            <div class="space-x-2">
+              <button class="px-3 py-1 text-xs bg-gray-100 border border-gray-300 rounded hover:bg-gray-200">✏️ Edit</button>
+              <button class="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600">🗑 Delete</button>
+            </div>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <span class="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded-full">Trim</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="text-xs text-gray-500 mt-4">Total Records: 4</div>
+    </div>
+  </main>
+
+  <script src="nav.js"></script>
+  <script src="auth.js"></script>
+</body>
+</html>
