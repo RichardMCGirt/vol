@@ -86,9 +86,13 @@
           <h1 class="text-2xl font-bold text-gray-900">Community Management</h1>
           <p class="text-sm text-gray-500 mt-1">Manage community details, plans, and associated builders</p>
         </div>
-        <button id="add-community-btn" class="bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-800 transition">
-          + Add Community
-        </button>
+  <button 
+  id="open-community-modal" 
+  class="bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-800 transition">
+  + Add Community
+</button>
+
+
       </div>
 
       <!-- Stats -->
@@ -117,7 +121,7 @@
           <thead class="border-b text-gray-500 font-semibold">
             <tr>
               <th class="text-left py-2 px-3">Community Name</th>
-              <th class="text-left py-2 px-3">City</th>
+              <th class="text-left py-2 px-3">Branch</th>
               <th class="text-left py-2 px-3">Builder</th>
               <th class="text-left py-2 px-3">Status</th>
               <th class="text-right py-2 px-3">Last Updated</th>
@@ -142,10 +146,76 @@
         </table>
       </div>
     </div>
+    <!-- Add Community Modal -->
+<!-- Add Community Modal -->
+<div id="community-modal"
+     class="hidden fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+  <div class="bg-white rounded-lg shadow-lg w-full max-w-lg p-6 relative">
+    <h2 class="text-lg font-semibold mb-4">Add New Community</h2>
+
+    <form id="community-form" class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Community Name</label>
+        <input type="text" id="communityName" class="w-full border border-gray-300 rounded-md p-2 text-sm"
+               placeholder="e.g. Rosewood Estates" required />
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Plan Name</label>
+        <input type="text" id="planName" class="w-full border border-gray-300 rounded-md p-2 text-sm"
+               placeholder="e.g. The Durham" required />
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Builder</label>
+       <select
+  id="community-builder"
+  class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+  required
+>
+  <option value="">Select Builder</option>
+</select>
+
+
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Start Date</label>
+          <input type="date" id="startDate" class="w-full border border-gray-300 rounded-md p-2 text-sm" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Estimated Completion</label>
+          <input type="date" id="estimatedCompletion" class="w-full border border-gray-300 rounded-md p-2 text-sm" />
+        </div>
+      </div>
+
+      <div class="flex justify-end space-x-2 pt-4 border-t mt-4">
+        <button type="button" id="cancel-community"
+                class="px-4 py-2 text-sm rounded-md border border-gray-300 hover:bg-gray-100">
+          Cancel
+        </button>
+        <button type="submit"
+                class="px-4 py-2 text-sm rounded-md bg-black text-white hover:bg-gray-800 transition">
+          Save Community
+        </button>
+      </div>
+    </form>
+
+    <button id="close-modal"
+            class="absolute top-3 right-3 text-gray-400 hover:text-gray-700 text-lg">
+      ✕
+    </button>
+  </div>
+</div>
+
+
   </main>
 
   <script src="nav.js"></script>
   <script src="auth.js"></script>
+  <script src="create-community.js"></script>
+
 
 </body>
 </html>

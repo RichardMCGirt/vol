@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Takeoff Creation | Vanir Volcano</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
+  </head>
+
+  <body class="bg-gray-50 text-gray-800 flex">
+    <!-- Sidebar -->
+    <aside class="w-60 bg-white border-r border-gray-200 h-screen fixed left-0 top-0 flex flex-col">
+      <div class="p-4 border-b flex items-center space-x-2">
+        <img src="Logo.jpg" alt="Vanir Volcano" class="w-6 h-6" />
+        <h1 class="font-semibold text-sm">Vanir Volcano</h1>
+      </div>
+
+      <nav class="flex-1 p-3 text-sm">
+        <ul class="space-y-1">
+          <li><button id="nav-dashboard" class="w-full text-left px-3 py-2 rounded-md hover:bg-gray-100">🏠 Dashboard</button></li>
+          <li><button id="nav-takeoffs" class="w-full text-left px-3 py-2 rounded-md bg-gray-100 font-semibold">📋 Takeoffs</button></li>
+          <li><button id="nav-builders" class="w-full text-left px-3 py-2 rounded-md hover:bg-gray-100">🏗️ Builders</button></li>
+          <li><button id="nav-communities" class="w-full text-left px-3 py-2 rounded-md hover:bg-gray-100">🏡 Communities</button></li>
+          <li><button id="nav-sku" class="w-full text-left px-3 py-2 rounded-md hover:bg-gray-100">📦 SKU Database</button></li>
+          <li><button id="nav-vendors" class="w-full text-left px-3 py-2 rounded-md hover:bg-gray-100">💼 Vendors</button></li>
+          <li><button id="nav-reports" class="w-full text-left px-3 py-2 rounded-md hover:bg-gray-100">📊 Reports</button></li>
+          <li><button id="nav-activity" class="w-full text-left px-3 py-2 rounded-md hover:bg-gray-100">🕓 Recent Activity</button></li>
+        </ul>
+
+        <div class="mt-6 border-t pt-3">
+          <p class="text-xs font-semibold text-gray-400 uppercase mb-1">Administration</p>
+          <ul class="space-y-1">
+            <li><button id="nav-users" class="w-full text-left px-3 py-2 rounded-md hover:bg-gray-100">👥 User Management</button></li>
+            <li><button id="nav-permissions" class="w-full text-left px-3 py-2 rounded-md hover:bg-gray-100">🔒 Permission Management</button></li>
+            <li><button id="nav-colors" class="w-full text-left px-3 py-2 rounded-md hover:bg-gray-100">🎨 Color Group</button></li>
+          </ul>
+        </div>
+      </nav>
+
+      <div class="p-3 border-t text-xs text-gray-500 text-center">
+        © 2025 Vanir Installed Sales
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 ml-60 p-6">
+      <!-- Header -->
+      <div class="flex justify-between items-center mb-4">
+        <div>
+          <p class="text-xs text-gray-400">Dashboard &gt; Takeoff &gt; Takeoff Creation</p>
+          <h1 class="text-xl font-semibold">Takeoff Creation</h1>
+          <p class="text-sm text-gray-500">Create detailed construction takeoffs with intelligent line-item management</p>
+        </div>
+        <div class="flex items-center space-x-3">
+          <div class="text-right">
+            <p class="text-sm font-medium">Richard Mcgirt</p>
+            <p class="text-xs text-gray-400">RM</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Form -->
+      <section class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+        <div class="grid grid-cols-5 gap-4 mb-10">
+          <div>
+            <label class="text-xs text-gray-500 font-medium">Takeoff Name *</label>
+            <input
+              type="text"
+              placeholder="E.g., Spanish Style"
+              class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mt-1 focus:outline-none focus:ring focus:ring-blue-100"
+            />
+          </div>
+
+          <div>
+            <label class="text-xs text-gray-500 font-medium">Takeoff Type *</label>
+            <select
+              class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mt-1 focus:outline-none focus:ring focus:ring-blue-100"
+            >
+              <option value="">Select</option>
+              <option value="Base">Base</option>
+              <option value="Option">Option</option>
+            </select>
+          </div>
+
+          <div>
+          <label class="text-xs text-gray-500 font-medium">Builder *</label>
+<select
+  id="builder-select"
+  class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mt-1 focus:outline-none focus:ring focus:ring-blue-100"
+>
+  <option value="">Loading Builders...</option>
+</select>
+
+          </div>
+
+          <div>
+            <label class="text-xs text-gray-500 font-medium">Plan *</label>
+            <select
+              class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mt-1 focus:outline-none focus:ring focus:ring-blue-100"
+            >
+              <option value="">Select Plan</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="text-xs text-gray-500 font-medium">Elevation *</label>
+            <select
+              class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mt-1 focus:outline-none focus:ring focus:ring-blue-100"
+            >
+              <option value="">Select Elevation</option>
+            </select>
+          </div>
+
+          <div class="col-span-5">
+            <label class="text-xs text-gray-500 font-medium">Community *</label>
+            <select
+              class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mt-1 focus:outline-none focus:ring focus:ring-blue-100"
+            >
+              <option value="">Select Community</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Placeholder Center Box -->
+        <div class="text-center py-20 border border-dashed border-gray-300 rounded-lg bg-gray-50">
+          <div class="flex justify-center mb-3">
+            <span class="text-4xl">📦</span>
+          </div>
+          <h2 class="text-lg font-medium text-gray-700 mb-1">Ready to Create Takeoff</h2>
+          <p class="text-sm text-gray-500">Complete the header selections above and click Create Takeoff to begin.</p>
+          <button class="mt-6 px-5 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition">
+            + Create Takeoff
+          </button>
+        </div>
+      </section>
+    </main>
+<script type="module" src="upload.js"></script>
+
+       <script>
+        window.env = {
+            AIRTABLE_API_KEY: 'patXTUS9m8os14OO1.6a81b7bc4dd88871072fe71f28b568070cc79035bc988de3d4228d52239c8238',
+            AIRTABLE_BASE_ID: 'appO21PVRA4Qa087I',
+            AIRTABLE_TABLE_NAME: 'tbl6EeKPsNuEvt5yJ',
+        };
+        </script>
+    <script src="nav.js"></script>
+    <script src="takeoff-builder.js"></script>
+    <script src="upload.js"></script>
+
+    <script src="auth.js"></script>
+
+  </body>
+</html>
