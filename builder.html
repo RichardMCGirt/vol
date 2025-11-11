@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Builder Management</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="theme.css" />
+</head>
+
+<body class="bg-background text-foreground font-sans">
+
+  <!-- Sidebar -->
+  <aside class="fixed inset-y-0 left-0 w-64 bg-card border-r border-border flex flex-col">
+    <!-- Logo -->
+    <div class="flex items-center h-16 px-6 border-b border-border">
+      <div id="nav-logo"
+           class="bg-black text-white w-8 h-8 flex items-center justify-center rounded-md font-semibold cursor-pointer">
+        V
+      </div>
+      <div class="ml-3">
+        <h1 class="text-sm font-bold leading-tight">Vanir Volcano</h1>
+        <p class="text-xs text-muted-foreground">Construction Estimating</p>
+      </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
+      <button id="nav-dashboard" class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-accent transition">
+        <span>🏠 Dashboard</span>
+      </button>
+      <button id="nav-takeoffs" class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-accent transition">
+        <span>📄 Takeoffs</span>
+      </button>
+      <button id="nav-builders" class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm bg-accent font-semibold transition">
+        <span>👷 Builders</span>
+      </button>
+      <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-accent transition"><span>🏘️ Communities</span></button>
+      <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-accent transition"><span>📦 SKU Database</span></button>
+      <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-accent transition"><span>🏗️ Vendors</span></button>
+      <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-accent transition"><span>📊 Reports</span></button>
+      <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-accent transition"><span>🕓 Recent Activity</span></button>
+
+      <div class="pt-6 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Administration</div>
+      <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-accent transition"><span>👤 User Management</span></button>
+      <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-accent transition"><span>🛡️ Permission Management</span></button>
+      <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-accent transition"><span>🎨 Color Group</span></button>
+    </nav>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="ml-64 min-h-screen flex flex-col">
+    <!-- Header -->
+    <header class="flex justify-end items-center h-16 border-b border-border bg-card px-6">
+      <div class="flex items-center space-x-3">
+        <div class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center font-medium text-gray-700">RM</div>
+        <span class="text-sm font-medium">Richard Mcgirt</span>
+      </div>
+    </header>
+
+    <!-- Page Body -->
+    <div class="flex-1 p-6 space-y-6">
+      <!-- Breadcrumb -->
+      <div class="text-sm text-muted-foreground">
+        Dashboard <span class="mx-1">/</span> Builders
+      </div>
+
+      <!-- Title + Actions -->
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-2xl font-bold">Builder Management</h1>
+          <p class="text-sm text-muted-foreground mt-1">
+            Manage builders, plans, elevations, and scope sheets
+          </p>
+        </div>
+        <div class="space-x-2">
+          <button class="border border-gray-300 rounded-md px-4 py-2 text-sm hover:bg-gray-100">Add Elevation</button>
+          <button class="border border-gray-300 rounded-md px-4 py-2 text-sm hover:bg-gray-100">Add Plan</button>
+          <button class="bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-800 transition">
+            + Add Builder
+          </button>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="grid grid-cols-3 gap-4">
+        <div class="bg-card border border-border rounded-lg p-4">
+          <p class="text-sm text-muted-foreground font-medium">Total Builders</p>
+          <p class="text-3xl font-bold mt-2">18</p>
+          <p class="text-xs text-muted-foreground mt-1">All registered builders</p>
+        </div>
+        <div class="bg-card border border-border rounded-lg p-4">
+          <p class="text-sm text-muted-foreground font-medium">Total Plans</p>
+          <p class="text-3xl font-bold mt-2">25</p>
+          <p class="text-xs text-muted-foreground mt-1">All plans across builders</p>
+        </div>
+        <div class="bg-card border border-border rounded-lg p-4">
+          <p class="text-sm text-muted-foreground font-medium">Total Elevations</p>
+          <p class="text-3xl font-bold mt-2">25</p>
+          <p class="text-xs text-muted-foreground mt-1">All elevations across plans</p>
+        </div>
+      </div>
+
+      <!-- Search -->
+      <div class="flex items-center space-x-2">
+        <input type="text" placeholder="Search builders, plans, elevations..." class="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500 focus:outline-none" />
+        <button class="border border-gray-300 rounded-md px-3 py-2 text-sm hover:bg-gray-100">🔍</button>
+      </div>
+
+      <!-- Builder List -->
+      <div class="bg-card border border-border rounded-lg p-4 space-y-3">
+        <!-- Builder Item -->
+        <div class="border border-border rounded-lg p-4 flex justify-between items-center">
+          <div>
+            <div class="font-semibold text-lg">Lansing Building Products - Drb - Miller Farm</div>
+            <p class="text-xs text-muted-foreground">1 plan · Created Nov 10, 2025</p>
+          </div>
+          <button class="border border-gray-300 rounded-md px-3 py-1 text-xs hover:bg-gray-100">+ Add Plan</button>
+        </div>
+
+        <div class="border border-border rounded-lg p-4 flex justify-between items-center">
+          <div>
+            <div class="font-semibold text-lg">The Stars</div>
+            <p class="text-xs text-muted-foreground">1 plan · Created Nov 04, 2025</p>
+          </div>
+          <button class="border border-gray-300 rounded-md px-3 py-1 text-xs hover:bg-gray-100">+ Add Plan</button>
+        </div>
+
+        <div class="border border-border rounded-lg p-4 flex justify-between items-center">
+          <div>
+            <div class="font-semibold text-lg">Rashad Stout</div>
+            <p class="text-xs text-muted-foreground">1 plan · Created Nov 03, 2025</p>
+          </div>
+          <button class="border border-gray-300 rounded-md px-3 py-1 text-xs hover:bg-gray-100">+ Add Plan</button>
+        </div>
+
+        <div class="border border-border rounded-lg p-4 flex justify-between items-center">
+          <div>
+            <div class="font-semibold text-lg">Lannar</div>
+            <p class="text-xs text-muted-foreground">1 plan · Created Oct 31, 2025</p>
+          </div>
+          <button class="border border-gray-300 rounded-md px-3 py-1 text-xs hover:bg-gray-100">+ Add Plan</button>
+        </div>
+
+        <div class="border border-border rounded-lg p-4 flex justify-between items-center">
+          <div>
+            <div class="font-semibold text-lg">Test Builder 2</div>
+            <p class="text-xs text-muted-foreground">2 plans · Created Oct 22, 2025</p>
+          </div>
+          <button class="border border-gray-300 rounded-md px-3 py-1 text-xs hover:bg-gray-100">+ Add Plan</button>
+        </div>
+
+        <!-- Footer -->
+        <div class="flex justify-between items-center text-xs text-muted-foreground mt-4">
+          <span>Total Records: 18</span>
+          <div class="flex items-center space-x-2">
+            <span>1 / 4</span>
+            <button class="border border-border rounded-md px-2 py-1 hover:bg-accent">&rarr;</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="nav.js"></script>
+</body>
+</html>

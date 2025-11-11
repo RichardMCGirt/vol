@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Takeoff Management</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans">
+
+  <!-- Sidebar -->
+  <aside class="fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 flex flex-col">
+    <div class="flex items-center h-16 px-6 border-b border-gray-200">
+<div id="nav-logo" 
+     class="bg-black text-white w-8 h-8 flex items-center justify-center rounded-md font-semibold cursor-pointer">
+  V
+</div>      
+      <div class="ml-3">
+        <h1 class="text-sm font-bold leading-tight">Vanir Volcano</h1>
+        <p class="text-xs text-gray-500">Construction Estimating</p>
+      </div>
+    </div>
+    <nav class="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
+      <button class="w-full flex items-center px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">🏠 Dashboard</button>
+      <button class="w-full flex items-center px-3 py-2 rounded-md text-sm bg-gray-100 font-medium text-black">📄 Takeoffs</button>
+      <button class="w-full flex items-center px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">👷 Builders</button>
+      <button class="w-full flex items-center px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">🏘️ Communities</button>
+      <button class="w-full flex items-center px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">📦 SKU Database</button>
+      <button class="w-full flex items-center px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">🏗️ Vendors</button>
+      <button class="w-full flex items-center px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">📊 Reports</button>
+      <button class="w-full flex items-center px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">🕓 Recent Activity</button>
+      <div class="pt-6 text-xs font-semibold text-gray-500 uppercase tracking-wide">Administration</div>
+      <button class="w-full flex items-center px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">👤 User Management</button>
+      <button class="w-full flex items-center px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">🛡️ Permission Management</button>
+      <button class="w-full flex items-center px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">🎨 Color Group</button>
+    </nav>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="ml-64 min-h-screen flex flex-col">
+    <!-- Header -->
+    <header class="flex justify-end items-center h-16 border-b border-gray-200 bg-white px-6">
+      <div class="flex items-center space-x-3">
+        <div class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center font-medium text-gray-700">RM</div>
+        <span class="text-sm font-medium">Richard Mcgirt</span>
+      </div>
+    </header>
+
+    <!-- Page Content -->
+    <div class="flex-1 p-6 space-y-6">
+      <!-- Breadcrumb -->
+      <div class="text-sm text-gray-500">
+        Dashboard <span class="mx-1">/</span> Takeoff
+      </div>
+
+      <!-- Page Title -->
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900">Takeoff Management</h1>
+          <p class="text-sm text-gray-500 mt-1">Create and manage construction takeoffs with SKU-based calculations</p>
+        </div>
+        <button class="bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-800 transition">+ Create Takeoff</button>
+      </div>
+
+      <!-- Stats -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-white border border-gray-200 rounded-lg p-4">
+          <p class="text-sm text-gray-500 font-medium">Total Takeoffs</p>
+          <p class="text-3xl font-bold mt-2">30</p>
+          <p class="text-xs text-gray-400 mt-1">Active construction estimates</p>
+        </div>
+       <div id="in-draft-card" class="bg-white border border-gray-200 rounded-lg p-4 cursor-pointer hover:bg-gray-50 transition">
+  <p class="text-sm text-gray-500 font-medium">In Draft</p>
+  <p class="text-3xl font-bold mt-2">19</p>
+  <p class="text-xs text-gray-400 mt-1">Currently being worked on</p>
+</div>
+
+      </div>
+
+      <!-- Filters -->
+      <div class="bg-white border border-gray-200 rounded-lg p-4">
+        <h2 class="text-sm font-semibold text-gray-600 mb-4">Filters & Search</h2>
+        <div class="grid grid-cols-4 gap-4">
+          <input type="text" placeholder="Search by name..." class="col-span-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500 focus:outline-none" />
+          <select class="col-span-1 border border-gray-300 rounded-md px-3 py-2 text-sm">
+            <option>Select Builder</option>
+          </select>
+        <select id="status-filter" class="col-span-1 border border-gray-300 rounded-md px-3 py-2 text-sm">
+  <option value="">Select Status</option>
+  <option value="Completed">Completed</option>
+  <option value="Draft">Draft</option>
+</select>
+
+          <select class="col-span-1 border border-gray-300 rounded-md px-3 py-2 text-sm">
+            <option>Select Type</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Table -->
+     <!-- Table -->
+<div class="bg-white border border-gray-200 rounded-lg p-4">
+  <table class="min-w-full text-sm">
+    <thead class="border-b text-gray-500 font-semibold">
+      <tr>
+        <th class="text-left py-2 px-3">Select</th>
+        <th class="text-left py-2 px-3">Active</th>
+        <th class="text-left py-2 px-3">Takeoff Name</th>
+        <th class="text-left py-2 px-3">Type</th>
+        <th class="text-left py-2 px-3">Builder/Plan</th>
+        <th class="text-left py-2 px-3">Status</th>
+        <th class="text-right py-2 px-3">Total Cost</th>
+        <th class="text-right py-2 px-3">Margin</th>
+        <th class="text-right py-2 px-3">Last Updated</th>
+        <th class="text-right py-2 px-3">Actions</th>
+      </tr>
+    </thead>
+
+    <!-- ✅ Put your ID here -->
+    <tbody id="takeoff-table" class="divide-y">
+      <tr>
+        <td class="py-3 px-3"><input type="checkbox"></td>
+        <td class="py-3 px-3"><div class="w-3 h-3 bg-green-500 rounded-full mx-auto"></div></td>
+        <td class="py-3 px-3">
+          <div class="font-semibold text-gray-800">Baylon</div>
+          <div class="text-xs text-gray-500">5 line items</div>
+        </td>
+        <td class="py-3 px-3"><span class="px-2 py-1 bg-black text-white text-xs rounded-md">Base</span></td>
+        <td class="py-3 px-3">
+          <div class="font-medium">Lansing Building Products</div>
+          <div class="text-xs text-gray-500">DRB - Miller Farm</div>
+        </td>
+        <td class="py-3 px-3"><span class="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-md">Completed</span></td>
+        <td class="py-3 px-3 text-right">$1,672</td>
+        <td class="py-3 px-3 text-right text-orange-600 font-medium">20.0%</td>
+        <td class="py-3 px-3 text-right">
+          <div>Nov 11, 2025</div>
+          <div class="text-xs text-gray-500">by Richard Mcgirt</div>
+        </td>
+        <td class="py-3 px-3 text-right">⋮</td>
+      </tr>
+
+      <tr>
+        <td class="py-3 px-3"><input type="checkbox"></td>
+        <td class="py-3 px-3"><div class="w-3 h-3 bg-green-500 rounded-full mx-auto"></div></td>
+        <td class="py-3 px-3">
+          <div class="font-semibold text-gray-800">Star-Takeoff</div>
+          <div class="text-xs text-gray-500">1 line item</div>
+        </td>
+        <td class="py-3 px-3"><span class="px-2 py-1 bg-black text-white text-xs rounded-md">Base</span></td>
+        <td class="py-3 px-3">
+          <div class="font-medium">The Stars</div>
+          <div class="text-xs text-gray-500">Stars Plan-1</div>
+        </td>
+        <td class="py-3 px-3"><span class="px-2 py-1 bg-gray-100 text-gray-800 text-xs font-medium rounded-md">Draft</span></td>
+        <td class="py-3 px-3 text-right">$1,008</td>
+        <td class="py-3 px-3 text-right text-orange-600 font-medium">20.0%</td>
+        <td class="py-3 px-3 text-right">
+          <div>Nov 10, 2025</div>
+          <div class="text-xs text-gray-500">by QA Team</div>
+        </td>
+        <td class="py-3 px-3 text-right">⋮</td>
+      </tr>
+    </tbody>
+  </table>
+
+
+        <div class="flex justify-between items-center text-xs text-gray-500 mt-4">
+          <span>Total Records: 30</span>
+          <div class="flex items-center space-x-2">
+            <span>1 / 6</span>
+            <button class="border rounded-md px-2 py-1 hover:bg-gray-100">&rarr;</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+<script src="nav.js"></script>
+<script src="filters.js"></script>
+
+
+</body>
+</html>
