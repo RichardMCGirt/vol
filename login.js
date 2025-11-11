@@ -54,14 +54,14 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       const user = data.records[0].fields;
-      console.log("👤 User record found:", user.Email);
+     console.log("👤 User record found:", user.email);
 
-      // 🧠 Compare plaintext passwords (basic version)
-      if (user.password === password) {
-        console.log("✅ Password match. Logging in user:", user.Email);
+if (user.password === password) {
+  console.log("✅ Password match. Logging in user:", user.email);
 
-        localStorage.setItem("loggedInUser", user.Email);
-        localStorage.setItem("userRecordId", data.records[0].id);
+  localStorage.setItem("loggedInUser", user.email);
+  localStorage.setItem("userRecordId", data.records[0].id);
+
 
         console.log("💾 Stored session in localStorage. Redirecting to index.html...");
         window.location.href = "index.html";
