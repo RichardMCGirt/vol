@@ -9,9 +9,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const builderSelect = document.getElementById("community-builder");
   const modal = document.getElementById("community-modal");
-  const openBtn = document.getElementById("open-community-modal");
-  const closeBtn = document.getElementById("close-community-modal");
-  const form = document.getElementById("community-form");
+const openBtn = document.getElementById("create-community"); // matches your blue “Create New” button
+const closeBtn = document.getElementById("close-modal"); // matches ✕ button in the modal
 
   // 🌐 Fetch builder names
   async function fetchBuilders(offset = null, builders = []) {
@@ -69,49 +68,63 @@ if (closeBtn && modal) {
 }
 
   // 📝 Form submission
+// 📝 Form submission
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
 
-  const nameEl = document.getElementById("communityName");
-  const planEl = document.getElementById("planName");
-  const builderEl = document.getElementById("community-builder");
-  const startDateEl = document.getElementById("startDate");
-  const estimatedCompletionEl = document.getElementById("estimatedCompletion");
+  const name = document.getElementById("communityName").value.trim();
+  const plan = document.getElementById("planName").value.trim();
+  const builderName = document.getElementById("community-builder").value.trim();
+  const startDate = document.getElementById("startDate")?.value || "";
+  const estimatedCompletion = document.getElementById("estimatedCompletion")?.value || "";
 
-  if (!nameEl || !builderEl || !planEl) {
-    console.error("❌ Required input elements not found in the DOM.");
-    alert("Form not loaded properly. Please refresh the page.");
+  // Step 1: get the builder record ID by name
+async function getBuilderRecordId(name) {
+const formula = `LOWER(TRIM({Client Name})) = LOWER(TRIM("${name.trim()}"))`;
+const url = `https://api.airtable.com/v0/${BASE_ID}/${BUILDERS_TABLE_ID}?filterByFormula=${encodeURIComponent(formula)}`;
+console.log("🧮 Querying Airtable with formula:", formula);
+
+
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${AIRTABLE_API_KEY}` },
+  });
+
+  const data = await res.json();
+  console.log("📊 Airtable builder lookup response:", data);
+
+  return data.records?.[0]?.id || null;
+}
+
+
+
+  const builderRecordId = await getBuilderRecordId(builderName);
+  if (!builderRecordId) {
+    alert(`❌ Could not find builder record for "${builderName}"`);
     return;
   }
-
-  const name = nameEl.value.trim();
-  const plan = planEl.value.trim();
-  const builder = builderEl.value.trim();
-  const startDate = startDateEl?.value || "";
-  const estimatedCompletion = estimatedCompletionEl?.value || "";
 
   console.log("🧩 Submitting data to Airtable:", {
     "Community Name": name,
     "Plan name": plan,
-    "Builder": builder,
+    "Builder": builderRecordId,
     "Start Date": startDate,
     "Estimated Completion": estimatedCompletion,
   });
 
   try {
     const response = await fetch(
-      `https://api.airtable.com/v0/appnZNCcUAJCjGp7L/tblYIxFxH2swiBZiI`,
+      `https://api.airtable.com/v0/${BASE_ID}/${COMMUNITIES_TABLE_ID}`,
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer pat6QyOfQCQ9InhK4.4b944a38ad4c503a6edd9361b2a6c1e7f02f216ff05605f7690d3adb12c94a3c`,
+          Authorization: `Bearer ${AIRTABLE_API_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           fields: {
             "Community Name": name,
             "Plan name": plan,
-            "Builder": builder,
+            "Builder": [builderRecordId], // ✅ array of IDs!
             "Start Date": startDate,
             "Estimated Completion": estimatedCompletion,
           },
@@ -122,9 +135,7 @@ form.addEventListener("submit", async (e) => {
     const text = await response.text();
     console.log("📥 Airtable raw response:", text);
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
     alert("✅ Community created successfully!");
     form.reset();
@@ -134,5 +145,6 @@ form.addEventListener("submit", async (e) => {
     alert("Failed to create community. Please check the console for details.");
   }
 });
+
 
 });
