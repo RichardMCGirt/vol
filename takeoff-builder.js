@@ -88,6 +88,67 @@ async function populateBuilderDropdown() {
   console.log(`✅ Populated ${rows.length} builders into dropdown`);
 }
 
+// ------------------------- POPULATE: COMMUNITIES -------------------------
+const COMMUNITY_TABLE_ID = "tblYIxFxH2swiBZiI";
+const communitySelect = document.getElementById("community-select");
+
+async function fetchCommunities() {
+  const url = `https://api.airtable.com/v0/${BASE_ID}/${COMMUNITY_TABLE_ID}?pageSize=100`;
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${AIRTABLE_API_KEY}` },
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`HTTP ${res.status} fetching communities. Body: ${text}`);
+  }
+
+  const data = await res.json();
+  console.log("🏘️ Fetched Communities:", data.records?.length ?? 0);
+  return data.records || [];
+}
+
+async function populateCommunityDropdown() {
+  if (!communitySelect) return;
+
+  communitySelect.innerHTML = `<option value="">Loading Communities...</option>`;
+
+  let records = [];
+  try {
+    records = await fetchCommunities();
+  } catch (err) {
+    console.error("❌ Failed to fetch communities:", err);
+    communitySelect.innerHTML = `<option value="">Failed to load communities</option>`;
+    return;
+  }
+
+  const rows = records
+    .map(r => ({ id: r.id, name: (r.fields["Community Name"] || "").trim() }))
+    .filter(r => r.name);
+
+  rows.sort((a, b) => a.name.localeCompare(b.name));
+
+  communitySelect.innerHTML = `<option value="">Select Community</option>`;
+  for (const row of rows) {
+    const opt = document.createElement("option");
+    opt.value = row.name;
+    opt.textContent = row.name;
+    communitySelect.appendChild(opt);
+  }
+
+  console.log(`✅ Populated ${rows.length} communities`);
+}
+
+// ------------------------- INIT COMMUNITIES -------------------------
+document.addEventListener("DOMContentLoaded", async () => {
+  try {
+    await populateCommunityDropdown();
+  } catch (err) {
+    console.error("❌ Error initializing communities:", err);
+  }
+});
+
+
 // ------------------------- POPULATE: PLAN/ELEVATION -------------------------
 async function populatePlanElevation(builderSelectEl) {
   let records = [];
