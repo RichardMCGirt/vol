@@ -1,0 +1,13 @@
+#savePlanElevation {
+  position: absolute;
+  top: 20px;       /* adjust distance from top */
+  right: 20px;     /* adjust distance from right */
+  z-index: 9999;   /* ensures it appears above table or cards */
+  background-color: #2563eb; /* tailwind blue-600 equivalent */
+  color: white;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+}
