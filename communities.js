@@ -133,7 +133,6 @@ document.addEventListener("DOMContentLoaded", async () => {
           <td class="py-3 px-3">${builderName}</td>
                     <td class="py-3 px-3">${branch}</td>
 
-          <td class="py-3 px-3"><span class="px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded-md">${f["Status"] || "Draft"}</span></td>
           <td class="py-3 px-3 text-right">
             <button data-id="${rec.id}" class="edit-btn text-blue-600 hover:underline text-sm">Edit</button>
           </td>
