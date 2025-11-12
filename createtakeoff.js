@@ -168,11 +168,15 @@ if (el) {
     inputEl.value = item.SKU;
 
     // Fill the rest of the row (UOM + Description)
-    const row = inputEl.closest("tr");
-    if (row) {
-      row.querySelector(".uom-input").value = item.UOM || "";
-      row.querySelector(".desc-input").value = item.Description || "";
-    }
+const row = inputEl.closest("tr");
+if (row) {
+  const uomInput = row.querySelector('input[placeholder="UOM"]');
+  const descInput = row.querySelector('input[placeholder="Description"]');
+
+  if (uomInput) uomInput.value = item.UOM || "";
+  if (descInput) descInput.value = item.Description || "";
+}
+
 
     // Hide dropdown
     list.style.display = "none";
