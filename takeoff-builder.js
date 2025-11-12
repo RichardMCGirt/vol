@@ -1,76 +1,101 @@
 // ------------------------- CONFIG -------------------------
 const AIRTABLE_API_KEY = "pat6QyOfQCQ9InhK4.4b944a38ad4c503a6edd9361b2a6c1e7f02f216ff05605f7690d3adb12c94a3c";
 const BASE_ID = "appnZNCcUAJCjGp7L";
-const BUILDERS_TABLE_ID = "tblDkASnuImCKBQyO"; // your synced table
 
+// Source tables
+const BUILDERS_TABLE_ID = "tblDkASnuImCKBQyO";   // Builders (has "Client Name")
+const TAKEOFFS_TABLE_ID = "tblYIxFxH2swiBZiI";   // Takeoffs (linked {Builder}, has "Community Name" or "Community (from Name)")
+
+// DOM elements (must exist in takeoff-creation.html)
 const builderSelect   = document.getElementById("builder-select");
 const planSelect      = document.getElementById("plan-select");
 const elevationSelect = document.getElementById("elevation-select");
 const saveBtn         = document.getElementById("savePlanElevation");
+const communitySelect = document.getElementById("community-select");
 
-// Simple guard if elements are missing
-if (!builderSelect || !planSelect || !elevationSelect || !saveBtn) {
+// Guards
+if (!builderSelect || !planSelect || !elevationSelect || !saveBtn || !communitySelect) {
   console.error("❌ Required elements not found in DOM. Check your IDs in takeoff-creation.html");
 }
 
-// ------------------------- HELPERS -------------------------
-async function fetchAirtableRecords() {
-  const url = `https://api.airtable.com/v0/${BASE_ID}/${BUILDERS_TABLE_ID}?pageSize=100`;
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${AIRTABLE_API_KEY}` },
-  });
+// ------------------------- HELPERS (BUILDERS TABLE) -------------------------
+async function fetchBuilderRecords() {
+ let allRecords = [];
+  let offset = null;
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`HTTP ${res.status} fetching builders. Body: ${text}`);
-  }
+  do {
+    const url = new URL(`https://api.airtable.com/v0/${BASE_ID}/${BUILDERS_TABLE_ID}`);
+    url.searchParams.set("pageSize", "100");
+    if (offset) url.searchParams.set("offset", offset);
 
-  const data = await res.json();
-  console.log("📦 Fetched Builders:", data.records?.length ?? 0);
-  return data.records || [];
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${AIRTABLE_API_KEY}` },
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status} fetching builders`);
+    const data = await res.json();
+
+    allRecords = allRecords.concat(data.records || []);
+    offset = data.offset; // Airtable sends this if more pages remain
+  } while (offset);
+
+  console.log(`📦 Total builders fetched: ${allRecords.length}`);
+  return allRecords;
 }
 
 function findBuilderRecord(records, builderSelectEl) {
-  const dropdownValue = (builderSelectEl.value || "").trim();
+  const dropdownValue = (builderSelectEl.value || "").trim().toLowerCase();
   const dropdownText =
     builderSelectEl.options[builderSelectEl.selectedIndex]?.textContent?.trim().toLowerCase();
 
-  const builder =
-    records.find(r => (r.fields["Client Name"] || "").toLowerCase() === dropdownText) ||
-    records.find(r => (r.fields["Client Name"] || "").toLowerCase() === dropdownValue.toLowerCase());
+  console.group("🔍 findBuilderRecord()");
+  console.log("🎯 Dropdown value:", dropdownValue);
+  console.log("🎯 Dropdown text:", dropdownText);
+
+  // Try exact match by name
+  const builder = records.find(r => {
+    const clientName = (r.fields["Client Name"] || "").trim().toLowerCase();
+    return clientName === dropdownText || clientName === dropdownValue;
+  });
 
   if (!builder) {
-    alert("Builder not found in Airtable (check console)");
-    console.table(records.map(r => ({ ID: r.id, Name: r.fields["Client Name"] })));
+    console.warn("⚠️ No builder match found. Showing possible close matches:");
+    const sample = records
+      .map(r => r.fields["Client Name"])
+      .filter(Boolean)
+      .filter(name => name.toLowerCase().includes(dropdownValue.slice(0, 4)))
+      .slice(0, 10);
+    console.table(sample.map(name => ({ "Client Name": name })));
+
+    console.groupEnd();
     return null;
   }
 
   console.log("✅ Matched builder:", builder.id, builder.fields["Client Name"]);
+  console.groupEnd();
   return builder;
 }
+
 
 // ------------------------- POPULATE: BUILDERS -------------------------
 let buildersLoaded = false;
 
 async function populateBuilderDropdown() {
   if (!builderSelect) return;
-  if (buildersLoaded && builderSelect.options.length > 1) {
-    // already populated
-    return;
-  }
+  if (buildersLoaded && builderSelect.options.length > 1) return;
 
   builderSelect.innerHTML = `<option value="">Select Builder</option>`;
 
   let records = [];
   try {
-    records = await fetchAirtableRecords();
+    records = await fetchBuilderRecords();
   } catch (err) {
     console.error("❌ Failed to fetch builders:", err);
     builderSelect.innerHTML = `<option value="">Failed to load builders</option>`;
     return;
   }
 
-  // Sort by name for nicer UX
+  // Sort by Client Name
   const rows = records
     .map(r => ({ id: r.id, name: (r.fields["Client Name"] || "").trim() }))
     .filter(r => r.name);
@@ -79,8 +104,9 @@ async function populateBuilderDropdown() {
 
   for (const row of rows) {
     const opt = document.createElement("option");
-    opt.value = row.name;          // keep value as name for your existing matcher
+    opt.value = row.name;          // keep value as name for UX
     opt.textContent = row.name;    // display name
+    opt.dataset.recordId = row.id; // retain the recID in case we need it later
     builderSelect.appendChild(opt);
   }
 
@@ -88,113 +114,76 @@ async function populateBuilderDropdown() {
   console.log(`✅ Populated ${rows.length} builders into dropdown`);
 }
 
-// ------------------------- POPULATE: COMMUNITIES -------------------------
-const COMMUNITY_TABLE_ID = "tblYIxFxH2swiBZiI";
-const communitySelect = document.getElementById("community-select");
-
-async function fetchCommunities() {
-  const url = `https://api.airtable.com/v0/${BASE_ID}/${COMMUNITY_TABLE_ID}?pageSize=100`;
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${AIRTABLE_API_KEY}` },
-  });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`HTTP ${res.status} fetching communities. Body: ${text}`);
-  }
-
-  const data = await res.json();
-  console.log("🏘️ Fetched Communities:", data.records?.length ?? 0);
-  return data.records || [];
-}
-
-async function populateCommunityDropdown() {
-  if (!communitySelect) return;
-
-  communitySelect.innerHTML = `<option value="">Loading Communities...</option>`;
-
-  let records = [];
-  try {
-    records = await fetchCommunities();
-  } catch (err) {
-    console.error("❌ Failed to fetch communities:", err);
-    communitySelect.innerHTML = `<option value="">Failed to load communities</option>`;
-    return;
-  }
-
-  const rows = records
-    .map(r => ({ id: r.id, name: (r.fields["Community Name"] || "").trim() }))
-    .filter(r => r.name);
-
-  rows.sort((a, b) => a.name.localeCompare(b.name));
-
-  communitySelect.innerHTML = `<option value="">Select Community</option>`;
-  for (const row of rows) {
-    const opt = document.createElement("option");
-    opt.value = row.name;
-    opt.textContent = row.name;
-    communitySelect.appendChild(opt);
-  }
-
-  console.log(`✅ Populated ${rows.length} communities`);
-}
-
-// ------------------------- INIT COMMUNITIES -------------------------
-document.addEventListener("DOMContentLoaded", async () => {
-  try {
-    await populateCommunityDropdown();
-  } catch (err) {
-    console.error("❌ Error initializing communities:", err);
-  }
-});
-
-
-// ------------------------- POPULATE: PLAN/ELEVATION -------------------------
+// ------------------------- POPULATE: PLAN/ELEVATION (from Builder record) -------------------------
 async function populatePlanElevation(builderSelectEl) {
+  console.group("🏗️ populatePlanElevation()");
   let records = [];
+
   try {
-    records = await fetchAirtableRecords();
+    console.log("📡 Fetching builder records...");
+    records = await fetchBuilderRecords();
+    console.log(`✅ Retrieved ${records.length} builder records`);
   } catch (err) {
     console.error("❌ Failed to fetch builders when populating plan/elevation:", err);
+    console.groupEnd();
     return;
   }
 
+  console.log("🔍 Attempting to find builder matching dropdown...");
   const builder = findBuilderRecord(records, builderSelectEl);
-  if (!builder) return;
+  if (!builder) {
+    console.warn("⚠️ No matching builder found for selection:", builderSelectEl.value);
+    console.groupEnd();
+    return;
+  }
 
-  // Read synced + stored data
-  const planValue       = builder.fields["Plan"];
-  const elevationValue  = builder.fields["Elevation"];
-  const jsonRaw         = builder.fields["PlanElevationJSON"];
+  console.log("✅ Found builder:", builder.id, builder.fields["Client Name"]);
+
+  const planValue      = builder.fields["Plan"];
+  const elevationValue = builder.fields["Elevation"];
+  const jsonRaw        = builder.fields["PlanElevationJSON"];
+
+  console.table([
+    { Field: "Plan", Value: planValue },
+    { Field: "Elevation", Value: elevationValue },
+    { Field: "PlanElevationJSON (raw)", Value: jsonRaw },
+  ]);
 
   let existingJSON = { plans: [], elevations: [] };
   try {
-    if (jsonRaw) existingJSON = JSON.parse(jsonRaw);
+    if (jsonRaw) {
+      existingJSON = JSON.parse(jsonRaw);
+      console.log("🧩 Parsed JSON successfully:", existingJSON);
+    } else {
+      console.warn("⚠️ No JSON stored for this builder");
+    }
   } catch (err) {
-    console.warn("⚠️ Invalid PlanElevationJSON format:", err);
+    console.warn("⚠️ Invalid PlanElevationJSON format:", err, "Raw JSON:", jsonRaw);
   }
 
-  console.log("📊 Existing JSON (for builder):", builder.fields["Client Name"], existingJSON);
+  // Combine and dedupe
+  const plans = Array.from(new Set([
+    ...(Array.isArray(existingJSON.plans) ? existingJSON.plans : []),
+    ...(planValue ? [planValue] : []),
+  ]));
 
-  const plans = Array.from(
-    new Set([
-      ...(Array.isArray(existingJSON.plans) ? existingJSON.plans : []),
-      ...(planValue ? [planValue] : []),
-    ])
-  );
+  const elevations = Array.from(new Set([
+    ...(Array.isArray(existingJSON.elevations) ? existingJSON.elevations : []),
+    ...(elevationValue ? [elevationValue] : []),
+  ]));
 
-  const elevations = Array.from(
-    new Set([
-      ...(Array.isArray(existingJSON.elevations) ? existingJSON.elevations : []),
-      ...(elevationValue ? [elevationValue] : []),
-    ])
-  );
+  console.table([
+    { Step: "Merged Plans", Plans: JSON.stringify(plans) },
+    { Step: "Merged Elevations", Elevations: JSON.stringify(elevations) },
+  ]);
 
+  // Clear dropdowns
   planSelect.innerHTML = "";
   elevationSelect.innerHTML = "";
 
-  // If there are no saved plans/elevations yet, still show a placeholder
+  // Populate Plans
   if (plans.length === 0) {
+    console.warn("⚠️ No plans found to populate");
     const opt = document.createElement("option");
     opt.value = "";
     opt.textContent = "No plans yet";
@@ -205,10 +194,13 @@ async function populatePlanElevation(builderSelectEl) {
       opt.value = p;
       opt.textContent = p;
       planSelect.appendChild(opt);
+      console.log(`📄 Added plan option: "${p}"`);
     });
   }
 
+  // Populate Elevations
   if (elevations.length === 0) {
+    console.warn("⚠️ No elevations found to populate");
     const opt = document.createElement("option");
     opt.value = "";
     opt.textContent = "No elevations yet";
@@ -219,21 +211,78 @@ async function populatePlanElevation(builderSelectEl) {
       opt.value = e;
       opt.textContent = e;
       elevationSelect.appendChild(opt);
+      console.log(`📄 Added elevation option: "${e}"`);
     });
   }
 
-  // Add creation options
-  const newPlan = document.createElement("option");
-  newPlan.value = "__new__";
-  newPlan.textContent = "+ Create New Plan";
-  planSelect.appendChild(newPlan);
-
-  const newElevation = document.createElement("option");
-  newElevation.value = "__new__";
-  newElevation.textContent = "+ Create New Elevation";
-  elevationSelect.appendChild(newElevation);
+  console.log("✅ Dropdowns updated. Total options → Plans:", planSelect.options.length, "Elevations:", elevationSelect.options.length);
+  console.groupEnd();
 }
 
+// ------------------------- ADD PLAN / ELEVATION BUTTONS -------------------------
+document.getElementById("add-plan-btn")?.addEventListener("click", () => {
+  const newPlan = prompt("Enter new Plan name:");
+  if (newPlan && newPlan.trim()) {
+    const opt = document.createElement("option");
+    opt.value = newPlan.trim();
+    opt.textContent = newPlan.trim();
+    planSelect.appendChild(opt);
+    planSelect.value = newPlan.trim();
+    console.log("🆕 Added new plan:", newPlan.trim());
+  }
+});
+
+document.getElementById("add-elevation-btn")?.addEventListener("click", () => {
+  const newElevation = prompt("Enter new Elevation name:");
+  if (newElevation && newElevation.trim()) {
+    const opt = document.createElement("option");
+    opt.value = newElevation.trim();
+    opt.textContent = newElevation.trim();
+    elevationSelect.appendChild(opt);
+    elevationSelect.value = newElevation.trim();
+    console.log("🆕 Added new elevation:", newElevation.trim());
+  }
+});
+
+// Utility: create inline input under a dropdown
+function createInlineInput(selectEl, placeholder, onSubmit) {
+  // Remove any existing inline input
+  const existing = selectEl.parentElement.querySelector(".inline-input");
+  if (existing) existing.remove();
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.placeholder = placeholder;
+  input.className =
+    "inline-input mt-2 w-full border border-blue-300 rounded-md px-2 py-1 text-sm focus:ring focus:ring-blue-100";
+  selectEl.parentElement.appendChild(input);
+
+  input.focus();
+
+  // Handle submission via Enter key
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      const value = input.value.trim();
+      if (value) {
+        onSubmit(value);
+        input.remove();
+      } else {
+        input.remove();
+        selectEl.value = "";
+      }
+    }
+  });
+
+  // Handle blur (cancel)
+  input.addEventListener("blur", () => {
+    if (!input.value.trim()) {
+      input.remove();
+      selectEl.value = "";
+    }
+  });
+}
+
+// Plan selector behavior
 planSelect.addEventListener("change", () => {
   if (planSelect.value === "__new__") {
     const newPlan = prompt("Enter new Plan name:");
@@ -241,8 +290,9 @@ planSelect.addEventListener("change", () => {
       const opt = document.createElement("option");
       opt.value = newPlan.trim();
       opt.textContent = newPlan.trim();
-      planSelect.insertBefore(opt, planSelect.lastElementChild); // place before +Create option
+      planSelect.insertBefore(opt, planSelect.lastElementChild);
       planSelect.value = newPlan.trim();
+      console.log("🆕 Added new plan:", newPlan.trim());
     } else {
       planSelect.value = "";
     }
@@ -258,6 +308,7 @@ elevationSelect.addEventListener("change", () => {
       opt.textContent = newElevation.trim();
       elevationSelect.insertBefore(opt, elevationSelect.lastElementChild);
       elevationSelect.value = newElevation.trim();
+      console.log("🆕 Added new elevation:", newElevation.trim());
     } else {
       elevationSelect.value = "";
     }
@@ -265,9 +316,10 @@ elevationSelect.addEventListener("change", () => {
 });
 
 
-// ------------------------- PATCH BACK -------------------------
+
+// ------------------------- PATCH BACK (Builder record) -------------------------
 async function updateBuilderFields(builderId, planText, elevationText) {
-  // 1️⃣ Fetch the latest record
+  // 1) Fetch latest
   const resFetch = await fetch(
     `https://api.airtable.com/v0/${BASE_ID}/${BUILDERS_TABLE_ID}/${builderId}`,
     { headers: { Authorization: `Bearer ${AIRTABLE_API_KEY}` } }
@@ -279,7 +331,7 @@ async function updateBuilderFields(builderId, planText, elevationText) {
   }
   const data = await resFetch.json();
 
-  // 2️⃣ Safely parse existing JSON
+  // 2) Parse JSON safely
   let currentJSON = { plans: [], elevations: [] };
   try {
     if (data.fields["PlanElevationJSON"]) {
@@ -289,15 +341,11 @@ async function updateBuilderFields(builderId, planText, elevationText) {
     console.warn("⚠️ Bad JSON, starting fresh");
   }
 
-  // 3️⃣ Merge new values
-  const updatedPlans = Array.from(
-    new Set([...(currentJSON.plans || []), planText])
-  );
-  const updatedElevations = Array.from(
-    new Set([...(currentJSON.elevations || []), elevationText])
-  );
+  // 3) Merge
+  const updatedPlans = Array.from(new Set([...(currentJSON.plans || []), planText]));
+  const updatedElevations = Array.from(new Set([...(currentJSON.elevations || []), elevationText]));
 
-  // 4️⃣ Patch back to Airtable
+  // 4) Patch
   const payload = {
     fields: {
       "Plan (Editable)": planText,
@@ -333,14 +381,68 @@ async function updateBuilderFields(builderId, planText, elevationText) {
   console.log("✅ Builder updated:", updated);
   alert("✅ Builder plan/elevation added!");
 
-  // 5️⃣ Immediately refresh the dropdowns so user sees new values
+  // 5) Refresh UI
   await populatePlanElevation(builderSelect);
+}
+
+// ------------------------- COMMUNITIES (FILTER BY BUILDER REC ID) -------------------------
+// We keep builder names human-friendly (from Builders table) and then use the selected builder's recId
+// to filter Takeoffs by linked {Builder} using filterByFormula.
+async function fetchCommunitiesByBuilderId(builderRecId) {
+  // filterByFormula: FIND("recXXXX", ARRAYJOIN({Builder}))
+  const formula = `FIND("${builderRecId}", ARRAYJOIN({Builder}))`;
+  const url = `https://api.airtable.com/v0/${BASE_ID}/${TAKEOFFS_TABLE_ID}?pageSize=100&filterByFormula=${encodeURIComponent(formula)}`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_API_KEY}` } });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`HTTP ${res.status} fetching communities. Body: ${text}`);
+  }
+  const data = await res.json();
+  return data.records || [];
+}
+
+async function populateCommunityDropdownByBuilderId(builderRecId) {
+  if (!communitySelect) return;
+
+  communitySelect.innerHTML = `<option value="">Loading Communities...</option>`;
+
+  let records = [];
+  try {
+    records = await fetchCommunitiesByBuilderId(builderRecId);
+  } catch (err) {
+    console.error("❌ Failed to fetch communities:", err);
+    communitySelect.innerHTML = `<option value="">Failed to load communities</option>`;
+    return;
+  }
+
+  // Prefer "Community Name", fallback to "Community (from Name)"
+  const names = records
+    .map(r => (r.fields["Community Name"] || r.fields["Community (from Name)"] || "").trim())
+    .filter(Boolean);
+
+  // De-dupe + sort
+  const unique = [...new Set(names)].sort((a, b) => a.localeCompare(b));
+
+  communitySelect.innerHTML = `<option value="">Select Community</option>`;
+  if (unique.length === 0) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "No communities found for this builder";
+    communitySelect.appendChild(opt);
+  } else {
+    for (const name of unique) {
+      const opt = document.createElement("option");
+      opt.value = name;
+      opt.textContent = name;
+      communitySelect.appendChild(opt);
+    }
+  }
+
+  console.log(`🏡 Populated ${unique.length} communities for builderId=${builderRecId}`);
 }
 
 // ------------------------- EVENTS & INIT -------------------------
 function wireEventsOnce() {
-  const saveBtn = document.getElementById("savePlanElevation"); // force recheck in case it loaded late
-
   if (!builderSelect || !saveBtn) {
     console.error("❌ Missing required elements:", {
       builderSelect: !!builderSelect,
@@ -348,17 +450,33 @@ function wireEventsOnce() {
     });
     return;
   }
-  // Avoid duplicate listeners
+
   builderSelect.onchange = async () => {
-    console.log("📤 Builder changed → repopulating plans/elevations");
+    console.log("📤 Builder changed → repopulating plans/elevations & communities");
     await populatePlanElevation(builderSelect);
+
+    // Resolve the selected builder to its record (from Builders table)
+    let builderRecords = [];
+    try {
+      builderRecords = await fetchBuilderRecords();
+    } catch (err) {
+      console.error("❌ Failed to fetch builders (for communities):", err);
+      communitySelect.innerHTML = `<option value="">Failed to load communities</option>`;
+      return;
+    }
+    const builder = findBuilderRecord(builderRecords, builderSelect);
+    if (builder) {
+      await populateCommunityDropdownByBuilderId(builder.id);
+    } else {
+      communitySelect.innerHTML = `<option value="">Select a builder first</option>`;
+    }
   };
 
   saveBtn.onclick = async () => {
     console.log("💾 Save button clicked");
     let records = [];
     try {
-      records = await fetchAirtableRecords();
+      records = await fetchBuilderRecords();
     } catch (err) {
       console.error("❌ Failed to fetch builders (save click):", err);
       alert("Could not load builders from Airtable. Check console for details.");
@@ -367,22 +485,15 @@ function wireEventsOnce() {
 
     const builder = findBuilderRecord(records, builderSelect);
     if (!builder) {
-      alert(
-        "⚠️ No matching builder found.\n\nMake sure the 'Client Name' in Airtable exactly matches the selected builder name."
-      );
+      alert("⚠️ No matching builder found.\n\nMake sure the 'Client Name' in Airtable exactly matches the selected builder name.");
       return;
     }
 
     let planText = planSelect.value;
     let elevationText = elevationSelect.value;
 
-    // Allow new entry
-    if (planText === "__new__") {
-      planText = prompt("Enter new Plan name:") || "";
-    }
-    if (elevationText === "__new__") {
-      elevationText = prompt("Enter new Elevation name:") || "";
-    }
+    if (planText === "__new__") planText = prompt("Enter new Plan name:") || "";
+    if (elevationText === "__new__") elevationText = prompt("Enter new Elevation name:") || "";
 
     if (!planText.trim() || !elevationText.trim()) {
       alert("Please enter both a Plan and Elevation name.");
@@ -392,8 +503,6 @@ function wireEventsOnce() {
     try {
       console.log("📡 Patching to Airtable with:", planText, elevationText);
       await updateBuilderFields(builder.id, planText.trim(), elevationText.trim());
-
-      // Immediately refresh dropdowns to reflect new entries
       await populatePlanElevation(builderSelect);
       console.log("✅ Refresh complete after update");
     } catch (err) {
@@ -403,15 +512,20 @@ function wireEventsOnce() {
   };
 }
 
-
-// Initialize on DOM ready (script is at end of body, but be safe)
 document.addEventListener("DOMContentLoaded", async () => {
   try {
     wireEventsOnce();
-    await populateBuilderDropdown();     // <<< THIS WAS MISSING
-    // If user had one selected (e.g., back nav), load their plans/elevations
+    await populateBuilderDropdown(); // builders first (from Builders table)
+
+    // If a builder is already selected (reload), hydrate plan/elevation and communities
     if (builderSelect && builderSelect.value) {
       await populatePlanElevation(builderSelect);
+      const bRecs = await fetchBuilderRecords();
+      const b = findBuilderRecord(bRecs, builderSelect);
+      if (b) await populateCommunityDropdownByBuilderId(b.id);
+    } else {
+      // UX: show placeholder until builder selected
+      communitySelect.innerHTML = `<option value="">Select a builder first</option>`;
     }
   } catch (err) {
     console.error("❌ Initialization error:", err);
