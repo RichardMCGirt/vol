@@ -386,59 +386,134 @@ async function updateBuilderFields(builderId, planText, elevationText) {
 }
 
 // ------------------------- COMMUNITIES (FILTER BY BUILDER REC ID) -------------------------
-// We keep builder names human-friendly (from Builders table) and then use the selected builder's recId
-// to filter Takeoffs by linked {Builder} using filterByFormula.
-async function fetchCommunitiesByBuilderId(builderRecId) {
-  // filterByFormula: FIND("recXXXX", ARRAYJOIN({Builder}))
-  const formula = `FIND("${builderRecId}", ARRAYJOIN({Builder}))`;
-  const url = `https://api.airtable.com/v0/${BASE_ID}/${TAKEOFFS_TABLE_ID}?pageSize=100&filterByFormula=${encodeURIComponent(formula)}`;
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_API_KEY}` } });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`HTTP ${res.status} fetching communities. Body: ${text}`);
-  }
-  const data = await res.json();
-  return data.records || [];
-}
 
 async function populateCommunityDropdownByBuilderId(builderRecId) {
   if (!communitySelect) return;
+
+  console.group(`🏡 populateCommunityDropdownByBuilderId(${builderRecId})`);
 
   communitySelect.innerHTML = `<option value="">Loading Communities...</option>`;
 
   let records = [];
   try {
+    console.log("📡 Fetching communities from TAKEOFFS table...");
     records = await fetchCommunitiesByBuilderId(builderRecId);
+    console.log(`📦 Airtable returned ${records.length} records`);
   } catch (err) {
     console.error("❌ Failed to fetch communities:", err);
     communitySelect.innerHTML = `<option value="">Failed to load communities</option>`;
+    console.groupEnd();
     return;
   }
 
-  // Prefer "Community Name", fallback to "Community (from Name)"
+  console.log("🔍 Raw records:");
+  records.forEach((rec, i) => console.log(i + 1, rec.fields));
+
+  // Correct field name
   const names = records
-    .map(r => (r.fields["Community Name"] || r.fields["Community (from Name)"] || "").trim())
+    .map(r => {
+      const value = r.fields["Community Name"];
+      console.log("➡️ Community Name:", value);
+      return value ? value.trim() : "";
+    })
     .filter(Boolean);
 
-  // De-dupe + sort
+  console.log("🧪 Extracted community names:", names);
+
   const unique = [...new Set(names)].sort((a, b) => a.localeCompare(b));
 
   communitySelect.innerHTML = `<option value="">Select Community</option>`;
+
   if (unique.length === 0) {
     const opt = document.createElement("option");
     opt.value = "";
     opt.textContent = "No communities found for this builder";
     communitySelect.appendChild(opt);
-  } else {
-    for (const name of unique) {
-      const opt = document.createElement("option");
-      opt.value = name;
-      opt.textContent = name;
-      communitySelect.appendChild(opt);
-    }
+    console.log("⚠️ No communities found");
+    console.groupEnd();
+    return;
   }
 
-  console.log(`🏡 Populated ${unique.length} communities for builderId=${builderRecId}`);
+  unique.forEach(name => {
+    const opt = document.createElement("option");
+    opt.value = name;
+    opt.textContent = name;
+    communitySelect.appendChild(opt);
+    console.log("📥 Added:", name);
+  });
+
+  console.log(`✅ Populated ${unique.length} communities.`);
+  console.groupEnd();
+}
+
+async function populateCommunityDropdownByBuilderName(builder) {
+  if (!communitySelect) return;
+
+  console.group("🏡 populateCommunityDropdownByBuilderName()");
+  console.log("📄 Full builder record:", builder);
+
+  const builderName = (builder.fields["Client Name"] || "").trim();
+  console.log("🔤 Builder Name:", builderName);
+
+  if (!builderName) {
+    console.warn("⚠️ No builder name found");
+    communitySelect.innerHTML = `<option value="">Select a builder</option>`;
+    console.groupEnd();
+    return;
+  }
+
+  // Use FIND() to match builder NAME inside the “Builder” field in the Communities table
+  const formula = `FIND("${builderName}", {Builder})`;
+  console.log("🔎 Formula:", formula);
+
+  const url = `https://api.airtable.com/v0/${BASE_ID}/${TAKEOFFS_TABLE_ID}?pageSize=100&filterByFormula=${encodeURIComponent(formula)}`;
+  console.log("🌐 URL:", url);
+
+  let data;
+  try {
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${AIRTABLE_API_KEY}` }
+    });
+    data = await res.json();
+  } catch (err) {
+    console.error("❌ Failed to fetch:", err);
+    communitySelect.innerHTML = `<option value="">Error loading</option>`;
+    return;
+  }
+
+  const records = data.records || [];
+  console.log(`📦 Returned ${records.length} communities`);
+
+  console.log("🔍 Raw community rows:");
+  records.forEach(r => console.log(r.fields));
+
+  const names = records
+    .map(r => (r.fields["Community Name"] || "").trim())
+    .filter(Boolean);
+
+  console.log("🧪 Extracted names:", names);
+
+  const unique = [...new Set(names)].sort((a, b) => a.localeCompare(b));
+  console.log("🧹 Unique:", unique);
+
+  // Populate dropdown
+  communitySelect.innerHTML = `<option value="">Select Community</option>`;
+
+  if (unique.length === 0) {
+    communitySelect.innerHTML = `<option>No communities found</option>`;
+    console.groupEnd();
+    return;
+  }
+
+  unique.forEach(name => {
+    const opt = document.createElement("option");
+    opt.value = name;
+    opt.textContent = name;
+    communitySelect.appendChild(opt);
+  });
+
+  console.log("✅ Dropdown populated");
+  console.groupEnd();
 }
 
 // ------------------------- EVENTS & INIT -------------------------
@@ -464,12 +539,13 @@ function wireEventsOnce() {
       communitySelect.innerHTML = `<option value="">Failed to load communities</option>`;
       return;
     }
-    const builder = findBuilderRecord(builderRecords, builderSelect);
-    if (builder) {
-      await populateCommunityDropdownByBuilderId(builder.id);
-    } else {
-      communitySelect.innerHTML = `<option value="">Select a builder first</option>`;
-    }
+   const builder = findBuilderRecord(builderRecords, builderSelect);
+if (builder) {
+  await populateCommunityDropdownByBuilderName(builder);
+} else {
+  communitySelect.innerHTML = `<option value="">Select a builder first</option>`;
+}
+
   };
 
   saveBtn.onclick = async () => {

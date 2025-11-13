@@ -1,4 +1,6 @@
-const TAKEOFF_SHEET_URL = "https://script.google.com/macros/s/AKfycbwkzJ9vwT6DI3yE-IQcW-ZJF6N5biIHb3eX_pFV3E5Ahfszewjt-kFjkO-IFk7CoJaG/exec";
+const TAKEOFF_SHEET_URL =
+  "https://docs.google.com/spreadsheets/d/1E3sRhqKfzxwuN6VOmjI2vjWsk_1QALEKkX7mNXzlVH8/gviz/tq?tqx=out:csv&sheet=DataLoad";
+
 
 let skuData = [];
 let dataReady = false;
@@ -16,39 +18,33 @@ document.addEventListener("DOMContentLoaded", async () => {
   const lineItemBody = document.getElementById("line-item-body");
 
   // ✅ Fetch SKU data from your GAS web app
- async function fetchSkuData() {
-  console.log("🎬 Takeoff Creation Initialization");
-  const start = performance.now();
+async function fetchSkuData() {
+  console.log("📡 Fetching CSV from:", TAKEOFF_SHEET_URL);
 
-  try {
-    const res = await fetch(TAKEOFF_SHEET_URL);
-    const text = await res.text();
-    console.log("📦 Raw CSV text preview:", text.slice(0, 200));
+  const response = await fetch(TAKEOFF_SHEET_URL);
+  console.log("📨 HTTP Status:", response.status);
 
-    const rows = text.split("\n").map(r => r.split(","));
-    console.log("🧱 Row count (including header):", rows.length);
+  const csvText = await response.text();
+  console.log("📄 CSV Text first 200 chars:", csvText.slice(0, 200));
 
-    if (rows.length <= 1) throw new Error("No rows found in sheet");
+  // Parse CSV
+  const rows = csvText
+    .trim()
+    .split("\n")
+    .map(r => r.split(","));
 
-    const headers = rows[0].map(h => h.trim());
-    console.log("📄 Headers:", headers);
+  console.log("📊 Parsed rows:", rows.length);
+  console.log("📊 First row:", rows[0]);
 
-    // --- FIXED: map headers correctly --- //
-    skuData = rows.slice(1).map(r => {
-      const obj = {};
-      headers.forEach((h, i) => (obj[h] = r[i]?.trim() || ""));
-      return obj;
-    });
+  // IMPORTANT: Save globally
+  window.skuData = rows;
 
-    console.log("🧾 Example SKU record:", skuData[0]);
-    console.log(`✅ SKU data loaded (${skuData.length} entries)`);
+  console.log("💾 skuData saved. Length =", window.skuData.length);
 
-  } catch (err) {
-    console.error("❌ Error fetching SKU data:", err);
-  } finally {
-    console.log("📡 Fetch SKU Data:", performance.now() - start, "ms");
-  }
+  return rows;
 }
+
+
 
 // --- 🧩 Attach Autocomplete --- //
 function attachAutocomplete(inputEl) {
@@ -72,13 +68,8 @@ function attachAutocomplete(inputEl) {
 
   // Helper: check if all form fields filled
   function allFieldsFilled() {
-    return (
-      nameInput.value.trim() &&
-      typeSelect.value &&
-      builderSelect.value &&
-      planSelect.value &&
-      elevationSelect.value
-    );
+    return builderSelect.value && planSelect.value;
+
   }
 
   // Show table when all required fields are complete
@@ -149,7 +140,6 @@ if (el) {
   console.warn("❌ sku-suggestion-list not found yet");
 }
 
-
   const rect = inputEl.getBoundingClientRect(); // ✅ guaranteed safe now
   list.style.position = "absolute";
   list.style.left = `${rect.left + window.scrollX}px`;
@@ -185,7 +175,6 @@ if (row) {
 
   list.appendChild(li);
 });
-
 }
 
   // ✅ Autofill logic

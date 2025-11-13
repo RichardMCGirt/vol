@@ -66,7 +66,14 @@ document.addEventListener("DOMContentLoaded", () => {
       e.stopPropagation();
     });
   }
-
+  const createBtn = document.getElementById("create-takeoff-btn");
+    if (createBtn) {
+      createBtn.addEventListener("click", () => {
+        console.log("🚀 Redirecting to takeoff-creation.html");
+        window.location.href = "takeoff-creation.html";
+      });
+    }
+  
   // Highlight the current active page automatically
   const current = window.location.pathname.split("/").pop() || "index.html";
   Object.entries(routes).forEach(([id, page]) => {
