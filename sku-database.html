@@ -19,20 +19,57 @@
     </div>
 
     <nav class="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
-      <button onclick="window.location.href='index.html'" class="w-full flex items-center px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">🏠 Dashboard</button>
-      <button onclick="window.location.href='takeoff.html'" class="w-full flex items-center px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">📄 Takeoffs</button>
-      <button onclick="window.location.href='builder.html'" class="w-full flex items-center px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">👷 Builders</button>
-      <button onclick="window.location.href='communities.html'" class="w-full flex items-center px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">🏘️ Communities</button>
-      <button class="w-full flex items-center px-3 py-2 rounded-md text-sm bg-gray-100 font-semibold text-black">📦 SKU Database</button>
-      <button onclick="window.location.href='vendor.html'" class="w-full flex items-center px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">🏗️ Vendors</button>
-      <button onclick="window.location.href='report.html'" class="w-full flex items-center px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">📊 Reports</button>
-      <button onclick="window.location.href='recent-activity.html'" class="w-full flex items-center px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">🕓 Recent Activity</button>
+  <!-- Main Navigation -->
+  <button id="nav-dashboard" class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm bg-accent font-semibold transition">
+    <span>🏠 Dashboard</span>
+  </button>
 
-      <div class="pt-6 text-xs font-semibold text-gray-500 uppercase tracking-wide">Administration</div>
-      <button onclick="window.location.href='admin.html'" class="w-full flex items-center px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">👤 User Management</button>
-      <button onclick="window.location.href='permission.html'" class="w-full flex items-center px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">🛡️ Permission Management</button>
-      <button onclick="window.location.href='colorgroup.html'" class="w-full flex items-center px-3 py-2 rounded-md text-sm hover:bg-gray-100 transition">🎨 Color Group</button>
-    </nav>
+  <button id="nav-takeoffs" class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-accent transition">
+    <span>📄 Takeoffs</span>
+  </button>
+
+  <button id="nav-builders" class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-accent transition">
+    <span>👷 Builders</span>
+  </button>
+
+  <button id="nav-communities" class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-accent transition">
+    <span>🏘️ Communities</span>
+  </button>
+
+  <button id="nav-sku-database" class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-accent transition">
+    <span>📦 SKU Database</span>
+  </button>
+
+  <button id="nav-vendors" class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-accent transition">
+    <span>🏗️ Vendors</span>
+  </button>
+
+  <button id="nav-reports" class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-accent transition">
+    <span>📊 Reports</span>
+  </button>
+
+  <button id="nav-recent-activity" class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-accent transition">
+    <span>🕓 Recent Activity</span>
+  </button>
+
+  <!-- Admin Section -->
+  <div class="pt-6 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+    Administration
+  </div>
+
+  <button id="nav-user-management" class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-accent transition">
+    <span>👤 User Management</span>
+  </button>
+
+  <button id="nav-permission" class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-accent transition">
+    <span>🛡️ Permission Management</span>
+  </button>
+
+  <button id="nav-color-group" class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm hover:bg-accent transition">
+    <span>🎨 Color Group</span>
+  </button>
+</nav>
+
   </aside>
 
   <!-- Main Content -->
@@ -75,9 +112,9 @@
 
   </main>
 
-  <script src="sku-database.js"></script>
-    <script src="nav.js"></script>
-      <script src="auth.js"></script>
+  <script src="js/sku-database.js"></script>
+    <script src="js/nav.js"></script>
+      <script src="js/auth.js"></script>
 
 
 </body>
