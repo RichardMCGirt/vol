@@ -28,6 +28,27 @@
 .sku-suggestion-list li:hover {
   background: #f0f0f0;
 }
+  /* Smooth fade */
+  #line-items-section {
+    opacity: 0;
+  }
+
+  table th,
+  table td {
+    white-space: nowrap;
+    padding: 8px 6px !important;
+  }
+
+  table {
+    border-radius: 8px !important;
+    overflow: hidden;
+  }
+
+  #line-items-section table input,
+  #line-items-section table select {
+    padding: 4px 6px;
+    border-radius: 4px;
+  }
 </style>
 
   </head>
@@ -165,6 +186,16 @@
     >
       + Add
     </button>
+<button
+  id="savePlanElevation"
+  type="button"
+  class="bg-blue-600 text-white text-xs px-3 py-2 rounded-md hover:bg-blue-700 shadow-sm"
+>
+  Save
+</button>
+
+
+
   </div>
 </div>
 
@@ -200,64 +231,59 @@
         </div>
 
         <!-- Placeholder Center Box -->
-        <div class="text-center py-20 border border-dashed border-gray-300 rounded-lg bg-gray-50">
-          <div class="flex justify-center mb-3">
-            <span class="text-4xl">📦</span>
-          </div>
-          <h2 class="text-lg font-medium text-gray-700 mb-1">Ready to Create Takeoff</h2>
-          <p class="text-sm text-gray-500">Complete the header selections above and click Create Takeoff to begin.</p>
-<button
-  id="savePlanElevation"
-  class="absolute top-20 right-4 z-50 bg-blue-600 text-white text-sm px-4 py-2 rounded-md hover:bg-blue-700 shadow-md"
->
-  + SAVE
-</button>
-
-        </div>
-      </section>
-    </main>
-    <!-- Line Item Table -->
-<section id="line-items-section" class="hidden mt-10 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
-  <h2 class="text-lg font-semibold text-gray-700 mb-3">Takeoff Line Items</h2>
-  <table class="min-w-full text-sm border-collapse border border-gray-200">
-    <thead class="bg-gray-100 border-b border-gray-200">
-      <tr class="text-gray-600 text-xs uppercase tracking-wider">
-        <th class="px-3 py-2 border">SKU</th>
-        <th class="px-3 py-2 border">Description</th>
-        <th class="px-3 py-2 border">UOM</th>
-        <th class="px-3 py-2 border">Material Type</th>
-        <th class="px-3 py-2 border">Color Group</th>
-        <th class="px-3 py-2 border">Quantity</th>
-        <th class="px-3 py-2 border">Vendor</th>
-        <th class="px-3 py-2 border">Unit Cost</th>
-        <th class="px-3 py-2 border">UOM Mult</th>
-        <th class="px-3 py-2 border">Extended Cost</th>
-        <th class="px-3 py-2 border">Margin %</th>
-        <th class="px-3 py-2 border">Total Price</th>
-        <th class="px-3 py-2 border">Action</th>
-      </tr>
-    </thead>
-    <tbody id="line-item-body" class="text-gray-700"></tbody>
-  </table>
-
-  <div class="mt-4">
-    <button
-      id="add-line-item"
-      class="text-blue-600 text-sm border border-blue-500 px-3 py-1 rounded hover:bg-blue-50 flex items-center space-x-1"
-    >
-      <span>➕</span> <span>Add Line Item</span>
-    </button>
+      <!-- Placeholder OR Line Items Container -->
+<div id="takeoff-content-container" class="mt-8">
+  <!-- Placeholder (shown until fields are complete) -->
+  <div id="placeholder-box" class="text-center py-16 border border-dashed border-gray-300 rounded-lg bg-gray-50 transition-all duration-300">
+    <div class="flex justify-center mb-3">
+      <span class="text-4xl">📦</span>
+    </div>
+    <h2 class="text-lg font-medium text-gray-700 mb-1">Ready to Create Takeoff</h2>
+    <p class="text-sm text-gray-500">Complete the header selections above to begin adding line items.</p>
   </div>
-</section>
+
+  <!-- Line Items Table (hidden initially) -->
+  <section id="line-items-section" class="hidden mt-6 bg-white border border-gray-200 rounded-lg shadow-sm p-4 opacity-0 transition-opacity duration-500">
+    <h2 class="text-lg font-semibold text-gray-700 mb-3">Takeoff Line Items</h2>
+
+    <table class="min-w-full text-sm border-collapse border border-gray-200 rounded-md overflow-hidden">
+      <thead class="bg-gray-100 border-b border-gray-200">
+        <tr class="text-gray-600 text-xs uppercase tracking-wider">
+          <th class="px-3 py-2 border">SKU</th>
+          <th class="px-3 py-2 border">Description</th>
+          <th class="px-3 py-2 border">UOM</th>
+          <th class="px-3 py-2 border">Material Type</th>
+          <th class="px-3 py-2 border">Color Group</th>
+          <th class="px-3 py-2 border">Quantity</th>
+          <th class="px-3 py-2 border">Vendor</th>
+          <th class="px-3 py-2 border">Unit Cost</th>
+          <th class="px-3 py-2 border">UOM Mult</th>
+          <th class="px-3 py-2 border">Extended Cost</th>
+          <th class="px-3 py-2 border">Margin %</th>
+          <th class="px-3 py-2 border">Total Price</th>
+          <th class="px-3 py-2 border">Action</th>
+        </tr>
+      </thead>
+      <tbody id="line-item-body" class="text-gray-700"></tbody>
+    </table>
+
+    <div class="mt-4">
+      <button id="add-line-item" class="text-blue-600 text-sm border border-blue-500 px-3 py-1 rounded hover:bg-blue-50 flex items-center space-x-1">
+        <span>➕</span> <span>Add Line Item</span>
+      </button>
+    </div>
+  </section>
+</div>
+
 
 
 
     <!-- Scripts -->
-    <script src="js/nav.js"></script>
-    <script src="js/takeoff-builder.js"></script>
-        <script src="js/createtakeoff.js"></script>
+  <script src="js/nav.js"></script>
+<script src="js/createtakeoff.js"></script>
+<script src="js/takeoff-builder.js"></script>   <!-- MOVE AFTER -->
+<script src="js/upload.js"></script>
+<script src="js/auth.js"></script>
 
-    <script src="js/upload.js"></script>
-    <script src="js/auth.js"></script>
   </body>
 </html>
