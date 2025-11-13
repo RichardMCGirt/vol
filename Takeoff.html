@@ -102,6 +102,7 @@
   class="bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-800 transition">
   + Create Takeoff
 </button>
+<input type="file" id="takeoff-import" accept=".xlsb,.xlsx,.xlsm,.xls">
 
       </div>
 
@@ -160,49 +161,7 @@
 
     <!-- ✅ Put your ID here -->
     <tbody id="takeoff-table" class="divide-y">
-      <tr>
-        <td class="py-3 px-3"><input type="checkbox"></td>
-        <td class="py-3 px-3"><div class="w-3 h-3 bg-green-500 rounded-full mx-auto"></div></td>
-        <td class="py-3 px-3">
-          <div class="font-semibold text-gray-800">Baylon</div>
-          <div class="text-xs text-gray-500">5 line items</div>
-        </td>
-        <td class="py-3 px-3"><span class="px-2 py-1 bg-black text-white text-xs rounded-md">Base</span></td>
-        <td class="py-3 px-3">
-          <div class="font-medium">Lansing Building Products</div>
-          <div class="text-xs text-gray-500">DRB - Miller Farm</div>
-        </td>
-        <td class="py-3 px-3"><span class="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-md">Completed</span></td>
-        <td class="py-3 px-3 text-right">$1,672</td>
-        <td class="py-3 px-3 text-right text-orange-600 font-medium">20.0%</td>
-        <td class="py-3 px-3 text-right">
-          <div>Nov 11, 2025</div>
-          <div class="text-xs text-gray-500">by Richard Mcgirt</div>
-        </td>
-        <td class="py-3 px-3 text-right">⋮</td>
-      </tr>
-
-      <tr>
-        <td class="py-3 px-3"><input type="checkbox"></td>
-        <td class="py-3 px-3"><div class="w-3 h-3 bg-green-500 rounded-full mx-auto"></div></td>
-        <td class="py-3 px-3">
-          <div class="font-semibold text-gray-800">Star-Takeoff</div>
-          <div class="text-xs text-gray-500">1 line item</div>
-        </td>
-        <td class="py-3 px-3"><span class="px-2 py-1 bg-black text-white text-xs rounded-md">Base</span></td>
-        <td class="py-3 px-3">
-          <div class="font-medium">The Stars</div>
-          <div class="text-xs text-gray-500">Stars Plan-1</div>
-        </td>
-        <td class="py-3 px-3"><span class="px-2 py-1 bg-gray-100 text-gray-800 text-xs font-medium rounded-md">Draft</span></td>
-        <td class="py-3 px-3 text-right">$1,008</td>
-        <td class="py-3 px-3 text-right text-orange-600 font-medium">20.0%</td>
-        <td class="py-3 px-3 text-right">
-          <div>Nov 10, 2025</div>
-          <div class="text-xs text-gray-500">by QA Team</div>
-        </td>
-        <td class="py-3 px-3 text-right">⋮</td>
-      </tr>
+     
     </tbody>
   </table>
 
@@ -217,9 +176,14 @@
       </div>
     </div>
   </main>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<script src="js/takeoffexport.js"></script>
+
 <script src="js/nav.js"></script>
 <script src="js/filters.js"></script>
   <script src="js/auth.js"></script>
+    <script src="js/populatetakeoff.js"></script>
+
 
 </body>
 </html>
