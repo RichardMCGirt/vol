@@ -44,13 +44,16 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     console.log("📄 First 5 CSV rows:", rows.slice(0, 5));
 
-    const parsed = rows.map((r) => ({
-      Vendor: r[0],
-      SKU: r[1],
-      UOM: r[2],
-      Description: r[3],
-      SKUHelper: r[4],
-    }));
+  const parsed = rows.map((r) => ({
+  Vendor: r[0],           // Column A
+  SKU: r[1],              // Column B
+  UOM: r[2],              // Column C
+  Description: r[3],      // Column D
+  SKUHelper: r[4],        // Column E
+  UOMMult: parseFloat(r[5]) || 1,     // Column F
+  Cost: parseFloat(r[6]) || 0,        // Column G
+}));
+
 
     window.skuData = parsed;
     console.log("📦 Parsed SKU objects:", parsed.slice(0, 5));
@@ -87,6 +90,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     requestAnimationFrame(() => {
       lineItemsSection.style.opacity = "1";
     });
+    if (lineItemBody.children.length === 0) {
+  addLineItem();
+}
+
   }
 
   function maybeShowLineItems() {
@@ -198,8 +205,16 @@ document.addEventListener("DOMContentLoaded", async () => {
           const descInput = row.querySelector('input[placeholder="Description"]');
           const vendorSelect = row.querySelector(".vendor-select");
 
-          if (uomInput) uomInput.value = item.UOM || "";
-          if (descInput) descInput.value = item.Description || "";
+         if (uomInput) uomInput.value = item.UOM || "";
+if (descInput) descInput.value = item.Description || "";
+
+// NEW — pull UOM Multiple + Cost (Unit Cost)
+const uomMultInput = row.querySelector('input[placeholder="UOM Mult"]');
+const costInput = row.querySelector('input[placeholder="Unit Cost"]');
+
+if (uomMultInput) uomMultInput.value = item.UOMMult;
+if (costInput) costInput.value = item.Cost.toFixed(2);
+
 
           // Populate Vendor dropdown from CSV for this SKU
           if (vendorSelect) {
@@ -291,16 +306,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     lineItemBody.appendChild(row);
     console.log("➕ Added new line item row");
 
-    const skuInput = row.querySelector(".sku-input");
-    attachAutocomplete(skuInput);
+const skuInput = row.querySelector(".sku-input");
+attachAutocomplete(skuInput);
 
-    const removeBtn = row.querySelector(".remove-line");
-    if (removeBtn) {
-      removeBtn.addEventListener("click", () => {
-        console.warn("🗑️ Line item removed");
-        row.remove();
-      });
-    }
+// Activate calculators
+attachCalculators(row);
+
+// Row delete button
+const removeBtn = row.querySelector(".remove-line");
+if (removeBtn) {
+  removeBtn.addEventListener("click", () => {
+    console.warn("🗑️ Line item removed");
+    row.remove();
+  });
+}
+
   }
 
   // Attach click handler to Add Line Item button
@@ -314,4 +334,31 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   console.groupEnd();
+
+  function attachCalculators(row) {
+  const qtyInput = row.querySelector('input[placeholder="Qty"]');
+  const unitCostInput = row.querySelector('input[placeholder="Unit Cost"]');
+  const extCostInput = row.querySelector('input[placeholder="Ext. Cost"]');
+  const marginInput = row.querySelector('input[placeholder="%"]');
+  const totalInput = row.querySelector('input[placeholder="Total"]');
+
+  function calculate() {
+    const qty = parseFloat(qtyInput.value) || 0;
+    const unitCost = parseFloat(unitCostInput.value) || 0;
+
+    // Extended Cost = Qty × Unit Cost
+    const ext = qty * unitCost;
+    extCostInput.value = ext.toFixed(2);
+
+    // Total Price = Ext × (1 + margin %)
+    const margin = parseFloat(marginInput.value) || 0;
+    const total = ext * (1 + margin / 100);
+    totalInput.value = total.toFixed(2);
+  }
+
+  qtyInput.addEventListener("input", calculate);
+  unitCostInput.addEventListener("input", calculate);
+  marginInput.addEventListener("input", calculate);
+}
+
 });
