@@ -21,24 +21,34 @@ document.addEventListener("DOMContentLoaded", () => {
     const data = await file.arrayBuffer();
     const workbook = XLSX.read(data, { type: "array" });
 
-    const firstSheet = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[firstSheet];
-
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
 
     console.log("📄 Parsed XLSB rows:", rows);
 
     for (const row of rows) {
+      // ⛔ SKIP EMPTY ROWS
+      if (isRowEmpty(row)) {
+        console.log("⏭️ Skipped EMPTY row:", row);
+        continue;
+      }
+
       const mapped = mapRowToAirtable(row);
-
       console.log("📤 Uploading row:", mapped);
-
       await uploadRow(mapped);
     }
 
     alert("✅ Takeoff import complete!");
   });
 });
+function isRowEmpty(row) {
+  return Object.values(row).every(v =>
+    v === "" ||
+    v === null ||
+    v === undefined ||
+    v === 0
+  );
+}
 
 
 // ========== MAP XLSB ROW → AIRTABLE FIELDS ==========
@@ -47,7 +57,6 @@ function mapRowToAirtable(row) {
     fields: {
       "Name": row["Takeoff Name"] || "",
       "Estimator Name": row["Estimator"] || "",
-      "Email (from Estimator Name)": row["Estimator Email"] || "",
       "Plan Name": row["Plan"] || "",
       "SKU": row["SKU"] || "",
       "UOM": row["UOM"] || "",
