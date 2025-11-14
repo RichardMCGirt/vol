@@ -7,7 +7,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Airtable config - unified base
   const AIRTABLE_API_KEY = "pat6QyOfQCQ9InhK4.4b944a38ad4c503a6edd9361b2a6c1e7f02f216ff05605f7690d3adb12c94a3c";
   const BASE_ID = "appnZNCcUAJCjGp7L";
-  const TABLE_ID = "tbl1ymzV1CYldIGJU";
+  const TABLE_ID = "tblfSrIrImd28RpAD";
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
