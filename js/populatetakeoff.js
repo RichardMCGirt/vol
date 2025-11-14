@@ -210,6 +210,7 @@ function enableRowInteractions() {
 
 // ------------------------- UPDATE RECORD -------------------------
 async function updateTakeoff(recordId, fields) {
+  // 1. Update Airtable
   const res = await fetch(
     `https://api.airtable.com/v0/${BASE_ID}/${TAKEOFFS_TABLE_ID}/${recordId}`,
     {
@@ -225,10 +226,26 @@ async function updateTakeoff(recordId, fields) {
   if (!res.ok) {
     console.error("❌ Error updating Airtable:", await res.text());
     alert("Update failed. See console.");
-  } else {
-    console.log("✅ Updated:", fields);
+    return;
   }
+
+  console.log("✅ Updated:", fields);
+
+  // 2. Update local in-memory record so UI stays in sync
+  const updatedRecord = await res.json();
+  const index = allTakeoffRecords.findIndex(r => r.id === recordId);
+
+  if (index !== -1) {
+    allTakeoffRecords[index].fields = {
+      ...allTakeoffRecords[index].fields,
+      ...updatedRecord.fields,
+    };
+  }
+
+  // 3. Recalculate counts (draft, totals, pagination, etc.)
+  renderPaginatedTable();
 }
+
 
 // ------------------------- COUNT TAKEOFFS PER PLAN -------------------------
 function countTakeoffsByPlan(records) {
