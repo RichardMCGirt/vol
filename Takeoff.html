@@ -110,12 +110,12 @@
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div class="bg-white border border-gray-200 rounded-lg p-4">
           <p class="text-sm text-gray-500 font-medium">Total Takeoffs</p>
-          <p class="text-3xl font-bold mt-2">30</p>
+<p id="total-takeoff-count" class="text-3xl font-bold mt-2">...</p>
           <p class="text-xs text-gray-400 mt-1">Active construction estimates</p>
         </div>
        <div id="in-draft-card" class="bg-white border border-gray-200 rounded-lg p-4 cursor-pointer hover:bg-gray-50 transition">
   <p class="text-sm text-gray-500 font-medium">In Draft</p>
-  <p class="text-3xl font-bold mt-2">19</p>
+<p id="draft-takeoff-count" class="text-3xl font-bold mt-2">...</p>
   <p class="text-xs text-gray-400 mt-1">Currently being worked on</p>
 </div>
 
@@ -166,13 +166,18 @@
   </table>
 
 
-        <div class="flex justify-between items-center text-xs text-gray-500 mt-4">
-          <span>Total Records: 30</span>
-          <div class="flex items-center space-x-2">
-            <span>1 / 6</span>
-            <button class="border rounded-md px-2 py-1 hover:bg-gray-100">&rarr;</button>
-          </div>
-        </div>
+       <div class="flex justify-between items-center text-xs text-gray-500 mt-4">
+  <span id="takeoff-total">Total Records: ...</span>
+
+  <div class="flex items-center space-x-2">
+    <button id="prev-page" class="border rounded-md px-2 py-1 hover:bg-gray-100">&larr;</button>
+
+    <span id="page-info">Page 1 of 1</span>
+
+    <button id="next-page" class="border rounded-md px-2 py-1 hover:bg-gray-100">&rarr;</button>
+  </div>
+</div>
+
       </div>
     </div>
   </main>
