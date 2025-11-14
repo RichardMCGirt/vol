@@ -116,8 +116,26 @@ fileInput.addEventListener("change", async (e) => {
   // ============================
   // EXTRACT ESTIMATOR (from N14)
   // ============================
-  const estimatorCell = sheet["N14"];
-  const foundEstimatorValue = estimatorCell?.v || "";
+let foundEstimatorValue = "";
+
+// Prefer N14
+if (sheet["N14"]?.v) {
+  foundEstimatorValue = sheet["N14"].v;
+} else {
+  // Auto-scan — use the cell you FOUND (L20)
+  Object.keys(sheet).forEach(addr => {
+    const cell = sheet[addr];
+    if (cell?.v && typeof cell.v === "string") {
+      if (cell.v.toLowerCase().includes("kornegay")) {
+        console.log("🎯 Auto-selected estimator cell:", addr, "→", cell.v);
+        foundEstimatorValue = cell.v;
+      }
+    }
+  });
+}
+
+console.log("📌 FINAL Estimator from sheet:", foundEstimatorValue);
+
 
   console.log("📌 Estimator from sheet:", foundEstimatorValue);
 
@@ -193,29 +211,25 @@ async function fetchTakeoffNameId(takeoffName) {
 
 
 // ========== LOOKUP ESTIMATOR LINKED RECORD ==========
-async function getEstimatorRecordId(name) {
-  if (!name || name.trim() === "") {
-    console.warn("⚠ No estimator name found");
-    return null;
-  }
+async function fetchEstimatorRecordId(name) {
+  if (!name) return null;
 
-  const url = `https://api.airtable.com/v0/${EBASE_ID}/${ESTIMATOR_TABLE_ID}?filterByFormula=${encodeURIComponent(
-    `{Full Name}="${name}"`
-  )}`;
+  console.log("🔎 Searching estimator table for:", name);
+
+  const encoded = encodeURIComponent(`{Full Name}='${name.replace(/'/g, "\\'")}'`);
+  const url = `https://api.airtable.com/v0/${EBASE_ID}/tbl1ymzV1CYldIGJU?filterByFormula=${encoded}`;
 
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${EAIRTABLE_API_KEY}` }
   });
 
-  const json = await res.json();
+  const data = await res.json();
+  if (!data.records.length) return null;
 
-  if (json.records && json.records.length > 0) {
-    return json.records[0].id;
-  }
-
-  console.warn("⚠ No matching estimator found:", name);
-  return null;
+  console.log("🆔 Correct Estimator Record ID:", data.records[0].id);
+  return data.records[0].id;
 }
+
 async function getTakeoffNameRecordId(name) {
   if (!name || name.trim() === "") return null;
 
