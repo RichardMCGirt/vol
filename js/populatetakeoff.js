@@ -1,6 +1,8 @@
 // ------------------------- CONFIG -------------------------
 const AIRTABLE_API_KEY = "pat6QyOfQCQ9InhK4.4b944a38ad4c503a6edd9361b2a6c1e7f02f216ff05605f7690d3adb12c94a3c";
 const BASE_ID = "appnZNCcUAJCjGp7L";
+let builderLookup = {};  // recId → Client Name
+const BUILDERS_TABLE_ID = "tblDkASnuImCKBQyO"; // ⭐ your source table
 
 // ⭐ The correct table for Takeoff List
 const TAKEOFFS_TABLE_ID = "tblZpnyqHJeC1IaZq";
@@ -10,6 +12,33 @@ const tableBody = document.getElementById("takeoff-table");
 
 if (!tableBody) {
   console.error("❌ Missing #takeoff-table in takeoff.html");
+}
+async function fetchBuilders() {
+  let records = [];
+  let offset = null;
+
+  do {
+    const url = new URL(`https://api.airtable.com/v0/${BASE_ID}/${BUILDERS_TABLE_ID}`);
+    url.searchParams.set("pageSize", "100");
+    if (offset) url.searchParams.set("offset", offset);
+
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${AIRTABLE_API_KEY}` }
+    });
+
+    const data = await res.json();
+    records = records.concat(data.records);
+    offset = data.offset;
+
+  } while (offset);
+
+  // Create lookup map
+  records.forEach(rec => {
+    const clientName = rec.fields["Client Name"] || "Unknown Builder";
+    builderLookup[rec.id] = clientName;
+  });
+
+  console.log(`🏗️ Loaded ${records.length} builders`);
 }
 
 // ------------------------- FETCH TAKEOFFS -------------------------
@@ -60,8 +89,8 @@ function renderRow(rec) {
 
   const active = f["Active"] === true;
   const type = f["Type"] || "";
-  const builder = f["Builder"] || "";
-  const community = f["Community"] || "";
+   
+
   const division = f["Division (from Name)"] || "";
   const status = f["Status"] || "Draft";
 
@@ -71,8 +100,25 @@ function renderRow(rec) {
   const updated = formatDate(f["Last updated"]);
   const updatedBy = f["Last Modified by"] || "";
 
-  const takeoffName =
-    f["Takeoff Creation"] || f["Takeoff Creation 2"] || "Untitled";
+  // --- Extract primary values first ---
+const takeoffName =
+  f["Takeoff Creation"] ||
+  f["Takeoff Creation 2"] ||
+  f["Takeoff Name"] ||
+  "Untitled";
+
+let builder = "";
+if (Array.isArray(f["Builder"]) && f["Builder"].length > 0) {
+  const builderId = f["Builder"][0];
+  builder = builderLookup[builderId] || builderId;
+}
+const community = f["Community"] || "";
+
+// --- Determine planName for grouping counts ---
+const planName = f["Takeoff Name"] || takeoffName;
+
+// --- Get count for this plan ---
+const takeoffCount = window.takeoffCounts?.[planName] || 1;
 
   return `
     <tr data-id="${id}">
@@ -94,10 +140,17 @@ function renderRow(rec) {
         <span class="px-2 py-1 bg-black text-white text-xs rounded-md">${type}</span>
       </td>
 
-      <td class="py-3 px-3">
-        <div class="font-medium">${builder}</div>
-        <div class="text-xs text-gray-500">${community}</div>
-      </td>
+     <td class="py-3 px-3">
+  <div class="font-medium">${builder}</div>
+  <div class="text-xs text-gray-500">${community}</div>
+
+  <!-- NEW ⭐ Takeoff Count Line -->
+ <div class="text-xs text-blue-600 font-semibold mt-1">
+   ${takeoffCount} takeoff${takeoffCount === 1 ? "" : "s"}
+</div>
+
+</td>
+
 
       <!-- ✅ Editable Status Dropdown -->
       <td class="py-3 px-3">
@@ -168,12 +221,27 @@ async function updateTakeoff(recordId, fields) {
     console.log("✅ Updated:", fields);
   }
 }
+// ------------------------- COUNT TAKEOFFS PER PLAN -------------------------
+function countTakeoffsByPlan(records) {
+  const counts = {};
+
+  records.forEach(rec => {
+    const f = rec.fields;
+    const planName = f["Plan Name"] || f["Takeoff Creation"] || f["Takeoff Creation 2"] || "Unknown";
+
+    if (!counts[planName]) counts[planName] = 0;
+    counts[planName]++;
+  });
+
+  return counts;
+}
 
 // ------------------------- MAIN RENDER FUNCTION -------------------------
 async function populateTakeoffTable() {
   tableBody.innerHTML = `...loading...`;
 
   const records = await fetchTakeoffs();
+window.takeoffCounts = countTakeoffsByPlan(records);
 
   tableBody.innerHTML = records.map(renderRow).join("");
 
@@ -185,4 +253,7 @@ async function populateTakeoffTable() {
 
 
 // ------------------------- INIT -------------------------
-document.addEventListener("DOMContentLoaded", populateTakeoffTable);
+document.addEventListener("DOMContentLoaded", async () => {
+  await fetchBuilders();         // ⭐ loads linked table
+  await populateTakeoffTable();  // ⭐ renders table with proper names
+});

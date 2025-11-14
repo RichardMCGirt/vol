@@ -37,22 +37,36 @@ async function fetchEstimatorRecordId(name) {
   return data.records[0].id;
 }
 async function findOrCreateTakeoffRecord(takeoffName) {
+  if (!takeoffName) return null;
+
+  // Clean input
+  const cleaned = takeoffName.trim().toLowerCase();
+
   const url = `https://api.airtable.com/v0/${EBASE_ID}/tblZpnyqHJeC1IaZq`;
 
-  // Search first
-  const filter = encodeURIComponent(`{Takeoff Name}="${takeoffName}"`);
+  // 🔍 Smart flexible search (case-insensitive + trims whitespace)
+  const filter = encodeURIComponent(
+    `LOWER(TRIM({Takeoff Name})) = "${cleaned}"`
+  );
+
   const searchUrl = `${url}?filterByFormula=${filter}`;
+
+  console.log("🔎 Searching Takeoff Name with flexible match:", cleaned);
 
   const res = await fetch(searchUrl, {
     headers: { Authorization: `Bearer ${EAIRTABLE_API_KEY}` }
   });
+
   const data = await res.json();
 
   if (data.records.length > 0) {
+    console.log("✔ FOUND existing Takeoff Name →", data.records[0].id);
     return data.records[0].id;
   }
 
-  // Create new if not found
+  // ❗ Create new if not found
+  console.log("➕ Creating NEW Takeoff Name:", takeoffName);
+
   const createRes = await fetch(url, {
     method: "POST",
     headers: {
@@ -65,8 +79,10 @@ async function findOrCreateTakeoffRecord(takeoffName) {
   });
 
   const created = await createRes.json();
+  console.log("🆕 Created Takeoff Name ID:", created.id);
   return created.id;
 }
+
 
 
 // ========== MAIN IMPORT FUNCTION ==========
