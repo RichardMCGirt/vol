@@ -3,6 +3,12 @@ const EAIRTABLE_API_KEY = "pat6QyOfQCQ9InhK4.4b944a38ad4c503a6edd9361b2a6c1e7f02
 const EBASE_ID = "appnZNCcUAJCjGp7L";
 const ETABLE_ID = "tblHmmBVDefWrN443"; // Line item table
 const ESTIMATOR_TABLE_ID = "tbl1ymzV1CYldIGJU"; // Full Name table
+// =====================
+// CONFIG
+// =====================
+const HEADER_ROW = 6;        // Excel row 7 (0-based index)
+const COLUMN_LIMIT = 15;     // Columns A–O
+
 async function fetchEstimatorRecordId(name) {
   if (!name) return null;
 
@@ -30,7 +36,36 @@ async function fetchEstimatorRecordId(name) {
   console.log("🆔 Correct Estimator Record ID:", data.records[0].id);
   return data.records[0].id;
 }
+ async function findOrCreateTakeoffRecord(takeoffName) {
+  const url = `https://api.airtable.com/v0/appnZNCcUAJCjGp7L/tblZpnyqHJeC1IaZq`;
 
+  // 1️⃣ Search existing takeoffs
+  const searchUrl = `${url}?filterByFormula=${encodeURIComponent(`{Takeoff Name}="${takeoffName}"`)}`;
+
+  const res = await fetch(searchUrl, {
+    headers: { Authorization: `Bearer ${AIRTABLE_API_KEY}` }
+  });
+  const data = await res.json();
+
+  if (data.records && data.records.length > 0) {
+    return data.records[0].id; // MATCH FOUND
+  }
+
+  // 2️⃣ Create new takeoff record
+  const createRes = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${AIRTABLE_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      fields: { "Takeoff Name": takeoffName }
+    })
+  });
+
+  const newRecord = await createRes.json();
+  return newRecord.id;
+}
 
 // ========== MAIN IMPORT FUNCTION ==========
 document.addEventListener("DOMContentLoaded", () => {
@@ -41,90 +76,8 @@ document.addEventListener("DOMContentLoaded", () => {
     return;
   }
 
-  fileInput.addEventListener("change", async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
+ 
 
-  console.log("📂 File selected:", file.name);
-
-  // ================= LOAD WORKBOOK =================
-  const data = await file.arrayBuffer();
-  const workbook = XLSX.read(data, { type: "array" });
-
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  if (!sheet) {
-    console.error("❌ No sheet found in workbook!");
-    return;
-  }
-
-  // ================= SCAN FOR ESTIMATOR =================
-  console.log("🔍 Scanning sheet for estimator name...");
-
-  let foundEstimatorCell = null;
-  let foundEstimatorValue = "";
-
-  Object.keys(sheet).forEach(addr => {
-    const cell = sheet[addr];
-    if (!cell || !cell.v) return;
-
-    if (typeof cell.v === "string") {
-      const val = cell.v.toLowerCase();
-
-      // You can add more last names or partial matches here
-      if (val.includes("kornegay") || val.includes("heath")) {
-        console.log("🎯 FOUND ESTIMATOR:", addr, "→", cell.v);
-        foundEstimatorCell = addr;
-        foundEstimatorValue = cell.v;
-      }
-    }
-  });
-
-  if (!foundEstimatorValue) {
-    console.log("⚠️ No estimator found in sheet. Value = ''");
-  } else {
-    console.log("📌 Final Estimator:", foundEstimatorValue);
-  }
-
-  // ================= EXTRACT RAW ROWS =================
-  const rawRows = XLSX.utils.sheet_to_json(sheet, {
-    header: 1,
-    defval: ""
-  });
-
-  console.log("📄 Raw rows loaded:", rawRows.length);
-
-  // ================= HEADER ROW =================
-  const HEADER_ROW = 6;        // row 7 in Excel
-  const COLUMN_LIMIT = 15;     // A–O columns
-
-  const headers = rawRows[HEADER_ROW].slice(0, COLUMN_LIMIT);  
-  console.log("🧩 Extracted Headers:", headers);
-
-  // ================= PARSE DATA ROWS =================
-  const parsedRows = rawRows
-    .slice(HEADER_ROW + 1)       // rows after header
-    .map((row, index) => {
-      const obj = {};
-      headers.forEach((h, i) => {
-        obj[h] = row[i];
-      });
-      console.log(`🔎 Parsed Row ${index}:`, obj);
-      return obj;
-    })
-    .filter(r => isRowMeaningful(r));  // skip empty rows
-
-  // ================= UPLOAD =================
-  for (const row of parsedRows) {
-const estimatorId = await fetchEstimatorRecordId(foundEstimatorValue);
-const mapped = mapRowToAirtable(row, estimatorId);
-    console.log("📤 Uploading row:", mapped);
-    await uploadRow(mapped);
-  }
-
-  alert("✅ Takeoff import complete!");
-});
-
-});
 
 
 // ========== DETECT REAL DATA ROWS ==========
@@ -139,7 +92,104 @@ function isRowMeaningful(row) {
   return true;
 }
 
+fileInput.addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
 
+  console.log("📄 File selected:", file.name);
+
+  const data = await file.arrayBuffer();
+  const workbook = XLSX.read(data);
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+
+  // Debug sheet scan for estimator name
+  console.log("🔍 Scanning sheet for estimator...");
+  Object.keys(sheet).forEach(addr => {
+    const cell = sheet[addr];
+    if (cell?.v && typeof cell.v === "string") {
+      if (cell.v.toLowerCase().includes("kornegay") || cell.v.toLowerCase().includes("estim")) {
+        console.log("🎯 FOUND POSSIBLE ESTIMATOR:", addr, "→", cell.v);
+      }
+    }
+  });
+
+  // ============================
+  // EXTRACT ESTIMATOR (from N14)
+  // ============================
+  const estimatorCell = sheet["N14"];
+  const foundEstimatorValue = estimatorCell?.v || "";
+
+  console.log("📌 Estimator from sheet:", foundEstimatorValue);
+
+  const estimatorId = await fetchEstimatorRecordId(foundEstimatorValue);
+  console.log("🆔 Estimator Record ID:", estimatorId);
+
+  // ============================
+  // PARSE TABLE HEADERS
+  // ============================
+  const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+  console.log("📄 Raw rows loaded:", rawRows.length);
+
+  const headers = rawRows[HEADER_ROW];
+  console.log("🧩 Extracted Headers:", headers);
+
+  // ============================
+  // PARSE DATA ROWS
+  // ============================
+  const parsedRows = rawRows
+    .slice(HEADER_ROW + 1)
+    .map((row, index) => {
+      const obj = {};
+      headers.forEach((h, i) => { obj[h] = row[i]; });
+      console.log(`🔎 Parsed Row ${index}:`, obj);
+      return obj;
+    })
+    .filter(r => isRowMeaningful(r));
+
+  console.log("📦 Meaningful rows:", parsedRows.length);
+
+  // ============================
+  // UPLOAD EACH ROW TO AIRTABLE
+  // ============================
+ for (const row of parsedRows) {
+  const estimatorId = await fetchEstimatorRecordId(foundEstimatorValue);
+  const mapped = await mapRowToAirtable(row, estimatorId);
+  await uploadRow(mapped);
+}
+
+
+  alert("✅ Takeoff import complete!");
+});
+});
+
+
+async function fetchTakeoffNameId(takeoffName) {
+  if (!takeoffName) return null;
+
+  // Escape single quotes for Airtable
+  const safeValue = takeoffName.replace(/'/g, "\\'");
+  const filter = encodeURIComponent(`{Takeoff Name}='${safeValue}'`);
+
+  const url = `https://api.airtable.com/v0/appnZNCcUAJCjGp7L/tblZpnyqHJeC1IaZq?filterByFormula=${filter}`;
+
+  console.log("🔎 Searching Takeoff Name:", takeoffName, "→", url);
+
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${EAIRTABLE_API_KEY}`
+    }
+  });
+
+  const data = await res.json();
+
+  if (!data.records?.length) {
+    console.warn("⚠️ No matching Takeoff Name found in Airtable:", takeoffName);
+    return null;
+  }
+
+  console.log("🆔 Found Takeoff Name ID:", data.records[0].id);
+  return data.records[0].id;
+}
 
 
 // ========== LOOKUP ESTIMATOR LINKED RECORD ==========
@@ -189,22 +239,24 @@ async function getTakeoffNameRecordId(name) {
 
 
 // ========== MAP XLSX ROW → AIRTABLE RECORD ==========
-function mapRowToAirtable(row, estimatorId) {
-  const fields = {
-    "SKU": row["SKU"] || "",
-   // "Name": row["Description"] || "",
-    "UOM": row["UOM"] || "",
-    "Quantity": Number(row["QTY"]) || 0,
-    "Raw JSON": JSON.stringify(row)
+async function mapRowToAirtable(row, estimatorId) {
+  const takeoffName = row["Description"];   // The Name to link to
+
+  const takeoffId = await findOrCreateTakeoffRecord(takeoffName);
+
+  return {
+    fields: {
+      "Name": [takeoffId],
+      "SKU": row["SKU"] || "",
+      "UOM": row["UOM"] || "",
+      "Quantity": row["QTY"] || 0,
+      "Estimator Name": estimatorId ? [estimatorId] : [],
+      "Raw JSON": JSON.stringify(row)
+    }
   };
-
-  // Only add estimator if we found a valid record ID
-  if (estimatorId) {
-    fields["Estimator"] = [estimatorId];
-  }
-
-  return { fields };
 }
+
+
 
 
 
