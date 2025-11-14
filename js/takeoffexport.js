@@ -1,7 +1,7 @@
 // ========== CONFIG ==========
 const EAIRTABLE_API_KEY = "pat6QyOfQCQ9InhK4.4b944a38ad4c503a6edd9361b2a6c1e7f02f216ff05605f7690d3adb12c94a3c";
 const EBASE_ID = "appnZNCcUAJCjGp7L";
-const ETABLE_ID = "tblHmmBVDefWrN443"; // Line item table
+const ETABLE_ID = "tblcG08fWPOesXDfC"; // Line item table
 const ESTIMATOR_TABLE_ID = "tbl1ymzV1CYldIGJU"; // Full Name table
 // =====================
 // CONFIG
@@ -36,26 +36,27 @@ async function fetchEstimatorRecordId(name) {
   console.log("🆔 Correct Estimator Record ID:", data.records[0].id);
   return data.records[0].id;
 }
- async function findOrCreateTakeoffRecord(takeoffName) {
-  const url = `https://api.airtable.com/v0/appnZNCcUAJCjGp7L/tblZpnyqHJeC1IaZq`;
+async function findOrCreateTakeoffRecord(takeoffName) {
+  const url = `https://api.airtable.com/v0/${EBASE_ID}/tblZpnyqHJeC1IaZq`;
 
-  // 1️⃣ Search existing takeoffs
-  const searchUrl = `${url}?filterByFormula=${encodeURIComponent(`{Takeoff Name}="${takeoffName}"`)}`;
+  // Search first
+  const filter = encodeURIComponent(`{Takeoff Name}="${takeoffName}"`);
+  const searchUrl = `${url}?filterByFormula=${filter}`;
 
   const res = await fetch(searchUrl, {
-    headers: { Authorization: `Bearer ${AIRTABLE_API_KEY}` }
+    headers: { Authorization: `Bearer ${EAIRTABLE_API_KEY}` }
   });
   const data = await res.json();
 
-  if (data.records && data.records.length > 0) {
-    return data.records[0].id; // MATCH FOUND
+  if (data.records.length > 0) {
+    return data.records[0].id;
   }
 
-  // 2️⃣ Create new takeoff record
+  // Create new if not found
   const createRes = await fetch(url, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${AIRTABLE_API_KEY}`,
+      Authorization: `Bearer ${EAIRTABLE_API_KEY}`,
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
@@ -63,9 +64,10 @@ async function fetchEstimatorRecordId(name) {
     })
   });
 
-  const newRecord = await createRes.json();
-  return newRecord.id;
+  const created = await createRes.json();
+  return created.id;
 }
+
 
 // ========== MAIN IMPORT FUNCTION ==========
 document.addEventListener("DOMContentLoaded", () => {
@@ -140,7 +142,95 @@ console.log("📌 FINAL Estimator from sheet:", foundEstimatorValue);
   console.log("📌 Estimator from sheet:", foundEstimatorValue);
 
   const estimatorId = await fetchEstimatorRecordId(foundEstimatorValue);
-  console.log("🆔 Estimator Record ID:", estimatorId);
+// 🆔 Estimator Record ID confirmed
+console.log("🆔 Estimator Record ID:", estimatorId);
+
+//--------------------------------------
+// Extract TAKEOFF NAME (C14) — merged + rich text safe
+//--------------------------------------
+//--------------------------------------
+// EXTRACT TAKEOFF NAME (Plan Name)
+// Your sheet puts it in M16
+//--------------------------------------
+let takeoffName = "";
+
+// Preferred cell for TAKEOFF NAME (M16)
+const TAKEOFF_CELLS = ["M16", "L16", "M15", "C14"];  // fallback list
+
+console.log("🔎 DEBUG START — Checking Takeoff Name cells…");
+
+// 1️⃣ Try known cells first
+for (const cell of TAKEOFF_CELLS) {
+  const c = sheet[cell];
+  if (!c) {
+    console.log(`⚪ ${cell} is empty or undefined`);
+    continue;
+  }
+
+  console.log(`🔍 Checking ${cell}:`, c);
+
+  if (c.v) {
+    takeoffName = c.v.toString().trim();
+    console.log(`🎯 TAKEOFF NAME found at ${cell}:`, takeoffName);
+    break;
+  }
+
+  if (c.w) {
+    takeoffName = c.w.toString().trim();
+    console.log(`🎯 TAKEOFF NAME (rich text) found at ${cell}:`, takeoffName);
+    break;
+  }
+}
+
+// 2️⃣ Check merged cells if still empty
+if (!takeoffName && sheet["!merges"]) {
+  console.log("🟦 Checking merged cells…");
+
+  sheet["!merges"].forEach(m => {
+    // M16 = row 15 (0-based 15), col 12 (0-based 12)
+    const TARGET_ROW = 15;
+    const TARGET_COL = 12;
+
+    if (m.s.r <= TARGET_ROW && m.e.r >= TARGET_ROW &&
+        m.s.c <= TARGET_COL && m.e.c >= TARGET_COL) {
+
+      const topLeft = XLSX.utils.encode_cell({ r: m.s.r, c: m.s.c });
+      const mergedCell = sheet[topLeft];
+
+      if (mergedCell?.v) {
+        takeoffName = mergedCell.v.toString().trim();
+        console.log(`🔷 TAKEOFF NAME from merged top-left ${topLeft}:`, takeoffName);
+      } else if (mergedCell?.w) {
+        takeoffName = mergedCell.w.toString().trim();
+        console.log(`🔷 TAKEOFF NAME (rich) from merged top-left ${topLeft}:`, takeoffName);
+      }
+    }
+  });
+}
+
+// 3️⃣ Last-resort search anywhere for the text "The Berkley"
+if (!takeoffName) {
+  console.log("🟨 Final fallback: scanning sheet for plan name…");
+
+  Object.keys(sheet).forEach(addr => {
+    const cell = sheet[addr];
+    if (!cell || !cell.v) return;
+
+    const value = cell.v.toString().trim();
+
+    // Match patterns like plan names
+    if (/^[A-Za-z ]{3,50}$/.test(value)) {
+      if (value.length > 3) {
+        console.log(`💡 Fallback matched at ${addr}:`, value);
+        takeoffName = value;
+      }
+    }
+  });
+}
+
+console.log("📌 FINAL TAKEOFF NAME:", takeoffName);
+
+
 
   // ============================
   // PARSE TABLE HEADERS
@@ -166,16 +256,22 @@ console.log("📌 FINAL Estimator from sheet:", foundEstimatorValue);
 
   console.log("📦 Meaningful rows:", parsedRows.length);
 
-  // ============================
-  // UPLOAD EACH ROW TO AIRTABLE
-  // ============================
- for (const row of parsedRows) {
-  const estimatorId = await fetchEstimatorRecordId(foundEstimatorValue);
-  const mapped = await mapRowToAirtable(row, estimatorId);
-  await uploadRow(mapped);
-}
+//--------------------------------------
+// CREATE OR FIND TAKEOFF NAME RECORD
+//--------------------------------------
+const takeoffRecordId = await findOrCreateTakeoffRecord(takeoffName);
+console.log("🆔 Takeoff Record ID:", takeoffRecordId);
 
-
+//--------------------------------------
+// UPLOAD FINAL JSON RECORD
+//--------------------------------------
+await uploadRow({
+  fields: {
+    "Plan Name": takeoffRecordId ? [takeoffRecordId] : [],      // ⭐ MUST BE ARRAY
+    "Estimator": estimatorId ? [estimatorId] : [],        // ⭐ MUST BE ARRAY
+    "Imported JSON": JSON.stringify(parsedRows)           // ⭐ All SKUs in one record
+  }
+});
   alert("✅ Takeoff import complete!");
 });
 });
@@ -188,7 +284,7 @@ async function fetchTakeoffNameId(takeoffName) {
   const safeValue = takeoffName.replace(/'/g, "\\'");
   const filter = encodeURIComponent(`{Takeoff Name}='${safeValue}'`);
 
-  const url = `https://api.airtable.com/v0/appnZNCcUAJCjGp7L/tblZpnyqHJeC1IaZq?filterByFormula=${filter}`;
+  const url = `https://api.airtable.com/v0/appnZNCcUAJCjGp7L/tblcG08fWPOesXDfC?filterByFormula=${filter}`;
 
   console.log("🔎 Searching Takeoff Name:", takeoffName, "→", url);
 
@@ -233,7 +329,7 @@ async function fetchEstimatorRecordId(name) {
 async function getTakeoffNameRecordId(name) {
   if (!name || name.trim() === "") return null;
 
-  const url = `https://api.airtable.com/v0/${EBASE_ID}/tblZpnyqHJeC1IaZq?filterByFormula=${encodeURIComponent(
+  const url = `https://api.airtable.com/v0/${EBASE_ID}/tblcG08fWPOesXDfC?filterByFormula=${encodeURIComponent(
     `{Takeoff Name}="${name}"`
   )}`;
 
@@ -269,12 +365,6 @@ async function mapRowToAirtable(row, estimatorId) {
     }
   };
 }
-
-
-
-
-
-
 
 // ========== UPLOAD TO AIRTABLE ==========
 async function uploadRow(payload) {
