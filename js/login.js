@@ -129,7 +129,11 @@ await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}/${record.id}`, {
 
 console.log("📝 Login timestamp saved to Airtable:", loginTimestamp);
 
-        window.location.href = "index.html";
+console.log("⏳ Waiting 3 seconds before redirect so you can read patch logs...");
+
+setTimeout(() => {
+  window.location.href = "index.html";
+}, 3000);
 
       } else {
         console.warn("❌ Password mismatch. Entered:", password, "Expected:", storedPassword);
