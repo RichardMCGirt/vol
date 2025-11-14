@@ -1,6 +1,7 @@
 // ------------------------- CONFIG -------------------------
 const AIRTABLE_API_KEY = "pat6QyOfQCQ9InhK4.4b944a38ad4c503a6edd9361b2a6c1e7f02f216ff05605f7690d3adb12c94a3c";
 const BASE_ID = "appnZNCcUAJCjGp7L";
+const SKU_TABLE_ID = "tblcG08fWPOesXDfC";
 
 let builderLookup = {};  // recId → Client Name
 const BUILDERS_TABLE_ID = "tblDkASnuImCKBQyO"; // ⭐ your source table
@@ -48,6 +49,36 @@ async function fetchBuilders() {
   });
 
   console.log(`🏗️ Loaded ${records.length} builders`);
+}
+async function getSkuCountFromJsonRecord(recordId) {
+  const res = await fetch(
+    `https://api.airtable.com/v0/${BASE_ID}/${SKU_TABLE_ID}/${recordId}`,
+    {
+      headers: { Authorization: `Bearer ${AIRTABLE_API_KEY}` }
+    }
+  );
+
+  if (!res.ok) {
+    console.error("Error fetching SKU JSON row:", await res.text());
+    return 0;
+  }
+
+  const data = await res.json();
+  const jsonStr = data.fields["Imported JSON"];
+
+  if (!jsonStr) return 0;
+
+  try {
+    const parsed = JSON.parse(jsonStr);
+
+    // expected: [ { ... }, { ... } ]
+    if (Array.isArray(parsed)) return parsed.length;
+
+    return 0;
+  } catch (err) {
+    console.error("Invalid JSON in Imported JSON:", err);
+    return 0;
+  }
 }
 
 // ------------------------- FETCH TAKEOFFS -------------------------
@@ -125,8 +156,29 @@ function renderRow(rec) {
   const planName = f["Takeoff Name"] || takeoffName;
 
   // --- Get count for this plan ---
-  const takeoffCount = window.takeoffCounts?.[planName] || 1;
+let skuHtml = `<div class="text-xs text-gray-400">Loading SKUs...</div>`;
 
+let linkedJsonRecordId = null;
+
+// 🔍 Try to find linked JSON record
+if (Array.isArray(f["Takeoff Creation"]) && f["Takeoff Creation"].length > 0) {
+  linkedJsonRecordId = f["Takeoff Creation"][0];
+}
+setTimeout(() => {
+  if (linkedJsonRecordId) {
+    getSkuCountFromJsonRecord(linkedJsonRecordId).then(count => {
+      const cell = document.querySelector(`#sku-count-${id}`);
+      if (cell) {
+        cell.textContent = `${count} SKU${count === 1 ? "" : "s"}`;
+      }
+    });
+  } else {
+    const cell = document.querySelector(`#sku-count-${id}`);
+    if (cell) {
+      cell.textContent = "0 SKUs";
+    }
+  }
+}, 10);
   return `
     <tr data-id="${id}">
       <td class="py-3 px-3">
@@ -152,9 +204,10 @@ function renderRow(rec) {
         <div class="text-xs text-gray-500">${community}</div>
 
         <!-- NEW ⭐ Takeoff Count Line -->
-        <div class="text-xs text-blue-600 font-semibold mt-1">
-          ${takeoffCount} takeoff${takeoffCount === 1 ? "" : "s"}
-        </div>
+      <div id="sku-count-${id}" class="text-xs text-blue-600 font-semibold mt-1">
+  Loading SKUs...
+</div>
+
       </td>
 
       <!-- ✅ Editable Status Dropdown -->
@@ -180,6 +233,7 @@ function renderRow(rec) {
     </tr>
   `;
 }
+
 
 // ------------------------- ROW INTERACTIONS -------------------------
 function enableRowInteractions() {
