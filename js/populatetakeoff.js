@@ -171,11 +171,13 @@ function renderRow(rec) {
   const updatedBy = f["Last Modified by"] || "";
 
   // --- Extract primary values first ---
-  const takeoffName =
-    f["Takeoff Creation"] ||
+ const takeoffName =
+    f["Takeoff Name"] ||     // ← ALWAYS use the actual text first
+    f["Plan Name"] ||        // ← fallback if you want
+    f["Takeoff Creation"] || // ← linked record LAST
     f["Takeoff Creation 2"] ||
-    f["Takeoff Name"] ||
     "Untitled";
+
 
   let builder = "";
   if (Array.isArray(f["Builder"]) && f["Builder"].length > 0) {
