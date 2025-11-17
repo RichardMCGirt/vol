@@ -4,7 +4,8 @@
 
 // Google Sheet CSV for SKU master data
 const TAKEOFF_SHEET_URL =
-  "https://docs.google.com/spreadsheets/d/1E3sRhqKfzxwuN6VOmjI2vjWsk_1QALEKkX7mNXzlVH8/gviz/tq?tqx=out:csv&sheet=DataLoad";
+  "https://docs.google.com/spreadsheets/d/1E3sRhqKfzxwuN6VOmjI2vjWsk_1QALEKkX7mNXzlVH8/gviz/tq?tqx=out:csv";
+
 
 // Airtable configs
 const AIRTABLE_API_KEY2 =
@@ -107,30 +108,39 @@ document.addEventListener("DOMContentLoaded", async () => {
   // ==========================================================
   // LOAD SKU CSV DATA
   // ==========================================================
-  async function fetchSkuData() {
-    console.log("📡 Fetching SKU CSV…");
+ async function fetchSkuData() {
+  console.log("📡 Fetching SKU CSV…");
 
-    const response = await fetch(TAKEOFF_SHEET_URL);
-    const csvText = await response.text();
+  const response = await fetch(TAKEOFF_SHEET_URL);
+  const csvText = await response.text();
 
-    const rows = csvText
-      .trim()
-      .split("\n")
-      .map((r) => r.split(",").map((x) => x.replace(/^"|"$/g, "")));
+  const rows = csvText
+    .trim()
+    .split("\n")
+    .map((r) =>
+      r
+        .split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/) // smart split
+        .map((x) => x.replace(/^"|"$/g, "").trim()) // remove surrounding quotes
+    );
 
-    const parsed = rows.map((r) => ({
-      Vendor: r[0],
-      SKU: r[1],
-      UOM: r[2],
-      Description: r[3],
-      SKUHelper: r[4],
-      UOMMult: parseFloat(r[5]) || 1,
-      Cost: parseFloat(r[6]) || 0,
-    }));
+  // Remove header row
+  const data = rows.slice(1);
 
-    window.skuData = parsed;
-    console.log("📦 SKU parsed:", parsed.slice(0, 5));
-  }
+  const parsed = data.map((r) => ({
+    Vendor: r[0] || "",
+    SKU: r[1] || "",
+    UOM: r[2] || "",
+    Description: r[3] || "",
+    SKUHelper: r[4] || "",
+    UOMMult: parseFloat(r[5]) || 1,
+    Cost: parseFloat(r[6]) || 0,
+  }));
+
+  window.skuData = parsed;
+
+  console.log("📦 Parsed first 5 rows:", window.skuData.slice(0, 5));
+}
+
 
   // ==========================================================
   // ADD LINE ITEM FROM SKU CSV
@@ -138,23 +148,32 @@ document.addEventListener("DOMContentLoaded", async () => {
   function addLineItemFromSku(skuObj) {
     const row = document.createElement("tr");
     row.innerHTML = `
-      <td><input class="sku-input w-full" placeholder="SKU" value="${skuObj.SKU}"></td>
-      <td><input class="w-full" placeholder="Description" value="${skuObj.Description}"></td>
-      <td><input class="w-full" placeholder="UOM" value="${skuObj.UOM}"></td>
-      <td><input class="w-full" placeholder="Material Type"></td>
-      <td><input class="w-full" placeholder="Color Group"></td>
-      <td><input type="number" class="w-full" placeholder="Qty" value="1"></td>
-      <td><input class="w-full" placeholder="Vendor" value="${skuObj.Vendor}"></td>
-      <td><input type="number" class="w-full" placeholder="Unit Cost" value="${skuObj.Cost}"></td>
-      <td><input type="number" class="w-full" placeholder="UOM Mult" value="${skuObj.UOMMult}"></td>
-      <td><input type="number" class="w-full" placeholder="Ext. Cost"></td>
-      <td><input type="number" class="w-full" placeholder="%"></td>
-      <td><input type="number" class="w-full" placeholder="Total"></td>
-      <td class="text-center"><button class="remove-line text-red-500">🗑️</button></td>
-    `;
+<td><input class="sku-input w-full" value=""></td>
+<td><input class="desc-input w-full" value=""></td>
+<td><input class="uom-input w-full" value=""></td>
+<td><input class="mat-input w-full" value=""></td>
+<td><input class="color-input w-full" value=""></td>
+
+<td><input class="qty-input w-full" type="number" value="1"></td>
+
+<td><input class="vendor-input w-full" value=""></td>
+
+<td><input class="cost-input w-full" type="number" value=""></td>
+<td><input class="mult-input w-full" type="number" value="1"></td>
+
+<td><input class="extcost-input w-full" type="number" value="" readonly></td>
+
+<td><input class="percent-input w-full" type="number" value="0"></td>
+
+<td><input class="total-input w-full" type="number" value="" readonly></td>
+
+<td class="text-center"><button class="remove-line text-red-500">🗑️</button></td>
+`;
+
 
     lineItemBody.appendChild(row);
-    attachAutocomplete(row.querySelector(".sku-input"));
+attachAutocomplete(row.querySelector(".sku-input"), "sku");
+attachAutocomplete(row.querySelector(".vendor-input"), "vendor");
     attachCalculators(row);
 
     row.querySelector(".remove-line").addEventListener("click", () => row.remove());
@@ -172,7 +191,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       <td><input class="w-full" placeholder="Material Type"></td>
       <td><input class="w-full" placeholder="Color Group"></td>
       <td><input type="number" class="w-full" placeholder="Qty"></td>
-      <td><input class="w-full" placeholder="Vendor"></td>
+<td><input class="vendor-input w-full" placeholder="Vendor"></td>
       <td><input type="number" class="w-full" placeholder="Unit Cost"></td>
       <td><input type="number" class="w-full" placeholder="UOM Mult"></td>
       <td><input type="number" class="w-full" placeholder="Ext. Cost"></td>
@@ -182,7 +201,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     `;
 
     lineItemBody.appendChild(row);
-    attachAutocomplete(row.querySelector(".sku-input"));
+attachAutocomplete(row.querySelector(".sku-input"), "sku");
+attachAutocomplete(row.querySelector(".vendor-input"), "vendor");
     attachCalculators(row);
 
     row.querySelector(".remove-line").addEventListener("click", () => row.remove());
@@ -193,32 +213,110 @@ document.addEventListener("DOMContentLoaded", async () => {
   // ==========================================================
   // AUTOCOMPLETE
   // ==========================================================
-  function attachAutocomplete(inputEl) {
-    if (!inputEl) return;
+function attachAutocomplete(inputEl, mode) {
+  if (!inputEl) return;
 
-    let timeout;
-    inputEl.addEventListener("input", (e) => {
-      const q = e.target.value.toLowerCase();
-      if (q.length < 2) return hideSuggestionList();
+  let timeout;
+  inputEl.addEventListener("input", (e) => {
+    const q = e.target.value.toLowerCase();
+    if (q.length < 2) return hideSuggestionList();
 
-      clearTimeout(timeout);
-      timeout = setTimeout(() => searchSkuSuggestions(q, inputEl), 180);
-    });
+    clearTimeout(timeout);
+    timeout = setTimeout(() => searchSkuSuggestions(q, inputEl, mode), 180);
+  });
 
-    inputEl.addEventListener("blur", () => {
-      setTimeout(() => hideSuggestionList(), 200);
-    });
-  }
+  inputEl.addEventListener("blur", () => {
+    setTimeout(() => hideSuggestionList(), 200);
+  });
+}
 
-  function searchSkuSuggestions(query, inputEl) {
-    const matches = window.skuData.filter(
+function searchSkuSuggestions(query, inputEl, mode) {
+  let matches = [];
+  const normalize = (s) => (s || "").trim().toLowerCase();
+
+  // ==========================
+  // Vendor Autocomplete Mode
+  // ==========================
+  if (mode === "vendor") {
+
+    const row = inputEl.closest("tr");
+    if (!row) return hideSuggestionList();
+
+    const skuVal = row.querySelector(".sku-input")?.value || "";
+    if (!skuVal) return hideSuggestionList();
+
+    // Filter vendors for this SKU only
+    matches = window.skuData.filter(
       (i) =>
-        i.SKU.toLowerCase().includes(query) ||
-        i.Description.toLowerCase().includes(query)
+        normalize(i.SKU) === normalize(skuVal) &&
+        normalize(i.Vendor).includes(normalize(query))
     );
 
-    showSuggestions(matches.slice(0, 12), inputEl);
+    return showSuggestions(matches.slice(0, 10), inputEl, mode);
   }
+
+  // ==========================
+  // SKU Autocomplete Mode
+  // ==========================
+  matches = window.skuData.filter(
+    (i) =>
+      normalize(i.SKU).includes(normalize(query)) ||
+      normalize(i.Description).includes(normalize(query))
+  );
+
+  return showSuggestions(matches.slice(0, 10), inputEl, mode);
+}
+
+function fillVendorDetails(row, item) {
+    if (!row || !item) return;
+
+    console.log("📦 fillVendorDetails:", item);
+
+    // Update pricing for that vendor
+    row.querySelector(".cost-input").value = item.Cost || 0;
+
+    // Same SKU, so UOM should match
+    row.querySelector(".uom-input").value = item.UOM || "";
+    row.querySelector(".desc-input").value = item.Description || "";
+}
+
+function calculateRowTotals(row) {
+    if (!row) return;
+
+    const qty = parseFloat(row.querySelector(".qty-input")?.value || 0);
+    const cost = parseFloat(row.querySelector(".cost-input")?.value || 0);
+    const mult = parseFloat(row.querySelector(".mult-input")?.value || 1);
+    const margin = parseFloat(row.querySelector(".percent-input")?.value || 0);
+
+    const extCost = qty * cost * mult;
+    const total = extCost * (1 + margin / 100);
+
+    const extCostInput = row.querySelector(".extcost-input");
+    const totalInput = row.querySelector(".total-input");
+
+    if (extCostInput) extCostInput.value = extCost.toFixed(2);
+    if (totalInput) totalInput.value = total.toFixed(2);
+
+    console.log("🧮 Row recalculated:", { qty, cost, mult, margin, extCost, total });
+}
+
+
+function attachCalculators(row) {
+    const qty = row.querySelector(".qty-input");
+    const cost = row.querySelector(".cost-input");
+    const mult = row.querySelector(".mult-input");
+    const percent = row.querySelector(".percent-input");
+
+    function recalc() {
+        calculateRowTotals(row);
+    }
+
+    qty?.addEventListener("input", recalc);
+    cost?.addEventListener("input", recalc);
+    mult?.addEventListener("input", recalc);
+    percent?.addEventListener("input", recalc);
+}
+
 
   function getSuggestionList() {
     let list = document.getElementById("sku-suggestion-list");
@@ -236,70 +334,117 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (list) list.style.display = "none";
   }
 
-  function showSuggestions(results, inputEl) {
-    if (!results.length) return hideSuggestionList();
+function showSuggestions(results, inputEl, mode = "sku") {
+    // Remove any existing dropdown
+    hideSuggestionList();
 
-    const list = getSuggestionList();
-    list.innerHTML = "";
+    // Debug
+    console.group("📌 showSuggestions()");
+    console.log("Mode:", mode);
+    console.log("Input value:", inputEl.value);
+    console.log("Results count:", results?.length);
+    console.log("Results:", results);
+    console.groupEnd();
 
-    const rect = inputEl.getBoundingClientRect();
+    if (!results || results.length === 0) return;
+
+    // Create dropdown container
+    const list = document.createElement("ul");
+    list.id = "autocomplete-list";
     list.style.position = "absolute";
-    list.style.left = `${rect.left + window.scrollX}px`;
-    list.style.top = `${rect.bottom + window.scrollY}px`;
-    list.style.width = `${rect.width}px`;
-    list.style.display = "block";
+    list.style.background = "white";
+    list.style.border = "1px solid #ccc";
+    list.style.zIndex = "9999";
+    list.style.maxHeight = "250px";
+    list.style.overflowY = "auto";
+    list.style.width = inputEl.offsetWidth + "px";
+    list.style.left = inputEl.getBoundingClientRect().left + window.scrollX + "px";
+    list.style.top = inputEl.getBoundingClientRect().bottom + window.scrollY + "px";
+    list.className = "autocomplete-container";
 
+    // Build suggestion items
     results.forEach((item) => {
-      const li = document.createElement("li");
-      li.textContent = `${item.SKU} (${item.UOM}) — ${item.Description}`;
-      li.style.cursor = "pointer";
+        const li = document.createElement("li");
+        li.className = "autocomplete-item hover:bg-gray-200 px-2 py-1 cursor-pointer";
 
-      li.addEventListener("click", () => {
-        inputEl.value = item.SKU;
+        if (mode === "sku") {
+            li.textContent = `${item.SKU} — ${item.Description}`;
+        } else if (mode === "vendor") {
+            li.textContent = item.Vendor;
+        }
 
-        const row = inputEl.closest("tr");
-        if (!row) return;
+        li.addEventListener("click", () => {
+            console.log("🖱 Selected suggestion:", li.textContent);
 
-        row.querySelector('input[placeholder="Description"]').value =
-          item.Description || "";
-        row.querySelector('input[placeholder="UOM"]').value = item.UOM || "";
+            const row = inputEl.closest("tr"); // <-- FIXED (now defined)
 
-        row.querySelector('input[placeholder="Unit Cost"]').value =
-          item.Cost.toFixed(2);
-        row.querySelector('input[placeholder="UOM Mult"]').value =
-          item.UOMMult;
+            if (mode === "sku") {
+                inputEl.value = item.SKU;
+                fillRowFromSku(row, item);
+                calculateRowTotals(row); // <-- runs totals after SKU fills
+            }
 
-        hideSuggestionList();
-      });
+            else if (mode === "vendor") {
+                inputEl.value = item.Vendor;
+                fillVendorDetails(row, item);
+                calculateRowTotals(row); // <-- runs totals after cost/mult changes
+            }
 
-      list.appendChild(li);
+            hideSuggestionList();
+            inputEl.dispatchEvent(new Event("input"));
+        });
+
+        list.appendChild(li);
     });
-  }
+
+    // Add to page
+    document.body.appendChild(list);
+}
+
+
+
 
   // ==========================================================
   // CALCULATOR
   // ==========================================================
-  function attachCalculators(row) {
-    const qty = row.querySelector('input[placeholder="Qty"]');
-    const cost = row.querySelector('input[placeholder="Unit Cost"]');
-    const ext = row.querySelector('input[placeholder="Ext. Cost"]');
-    const margin = row.querySelector('input[placeholder="%"]');
-    const total = row.querySelector('input[placeholder="Total"]');
+function attachCalculators(row) {
+    const qty = row.querySelector(".qty-input");
+    const cost = row.querySelector(".cost-input");
+    const mult = row.querySelector(".mult-input");
+    const ext = row.querySelector(".extcost-input");
+    const margin = row.querySelector(".percent-input");
+    const total = row.querySelector(".total-input");
+
+    // If any input is missing, skip this row
+    if (!qty || !cost || !mult || !ext || !margin || !total) {
+        console.warn("⚠️ Calculator skipped — missing inputs:", row);
+        return;
+    }
 
     function recalc() {
-      const q = parseFloat(qty.value) || 0;
-      const c = parseFloat(cost.value) || 0;
-      const e = q * c;
-      ext.value = e.toFixed(2);
+        const q = parseFloat(qty.value) || 0;
+        const c = parseFloat(cost.value) || 0;
+        const m = parseFloat(mult.value) || 1;
+        const p = parseFloat(margin.value) || 0;
 
-      const m = parseFloat(margin.value) || 0;
-      total.value = (e * (1 + m / 100)).toFixed(2);
+        const extCost = q * c * m;
+        const totalCost = extCost * (1 + p / 100);
+
+        ext.value = extCost.toFixed(2);
+        total.value = totalCost.toFixed(2);
+
+        console.log("🧮 Row recalculated:", { q, c, m, p, extCost, totalCost });
     }
 
     qty.addEventListener("input", recalc);
     cost.addEventListener("input", recalc);
+    mult.addEventListener("input", recalc);
     margin.addEventListener("input", recalc);
-  }
+
+    // Initial calculation on load
+    recalc();
+}
+
 
   // ==========================================================
   // EDIT MODE → LOAD TAKEOFF
@@ -350,26 +495,35 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     lineItemBody.innerHTML = "";
 
-    json.forEach((item) => {
-      const row = document.createElement("tr");
-      row.innerHTML = `
-        <td><input class="sku-input w-full" value="${item.SKU || ""}" placeholder="SKU"></td>
-        <td><input class="w-full" value="${item.Description || ""}" placeholder="Description"></td>
-        <td><input class="w-full" value="${item.UOM || ""}" placeholder="UOM"></td>
-        <td><input class="w-full" value="${item["Material Type"] || ""}" placeholder="Material Type"></td>
-        <td><input class="w-full" value="${item["Color Group"] || ""}" placeholder="Color Group"></td>
-        <td><input class="w-full" value="${item.Qty || ""}" placeholder="Qty"></td>
-        <td><input class="w-full" value="${item.Vendor || ""}" placeholder="Vendor"></td>
-        <td><input class="w-full" value="${item["Unit Cost"] || ""}" placeholder="Unit Cost"></td>
-        <td><input class="w-full" value="${item["UOM Mult"] || ""}" placeholder="UOM Mult"></td>
-        <td><input class="w-full" value="${item["Ext. Cost"] || ""}" placeholder="Ext. Cost"></td>
-        <td><input class="w-full" value="${item["%"] || ""}" placeholder="%"></td>
-        <td><input class="w-full" value="${item.Total || ""}" placeholder="Total"></td>
-        <td class="text-center"><button class="remove-line text-red-500">🗑️</button></td>
-      `;
+   json.forEach((item) => {
+  const row = document.createElement("tr");
+ row.innerHTML = `
+<td><input class="sku-input w-full" value="${item.SKU || ""}"></td>
+<td><input class="desc-input w-full" value="${item.Description || ""}"></td>
+<td><input class="uom-input w-full" value="${item.UOM || ""}"></td>
+<td><input class="mat-input w-full" value="${item["Material Type"] || ""}"></td>
+<td><input class="color-input w-full" value="${item["Color Group"] || ""}"></td>
+
+<td><input class="qty-input w-full" type="number" value="${parseFloat(item.Qty) || 1}">
+
+<td><input class="vendor-input w-full" value="${item.Vendor || ""}"></td>
+
+<td><input class="cost-input w-full" type="number" value="${item["Unit Cost"] || 0}"></td>
+<td><input class="mult-input w-full" type="number" value="${item["UOM Mult"] || 1}"></td>
+
+<td><input class="extcost-input w-full" type="number" value="${item["Ext. Cost"] || 0}" readonly></td>
+
+<td><input class="percent-input w-full" type="number" value="${item["%"] || 0}"></td>
+
+<td><input class="total-input w-full" type="number" value="${item.Total || 0}" readonly></td>
+
+<td class="text-center"><button class="remove-line text-red-500">🗑️</button></td>
+`;
+
 
       lineItemBody.appendChild(row);
-      attachAutocomplete(row.querySelector(".sku-input"));
+attachAutocomplete(row.querySelector(".sku-input"), "sku");
+attachAutocomplete(row.querySelector(".vendor-input"), "vendor");
       attachCalculators(row);
 
       row.querySelector(".remove-line").addEventListener("click", () => row.remove());
