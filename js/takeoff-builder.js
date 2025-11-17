@@ -95,7 +95,7 @@ async function populateBuilderDropdown() {
     return;
   }
 
-  // Sort by Client Name
+  // Extract record IDs + Client Names
   const rows = records
     .map(r => ({ id: r.id, name: (r.fields["Client Name"] || "").trim() }))
     .filter(r => r.name);
@@ -104,15 +104,15 @@ async function populateBuilderDropdown() {
 
   for (const row of rows) {
     const opt = document.createElement("option");
-    opt.value = row.name;          // keep value as name for UX
-    opt.textContent = row.name;    // display name
-    opt.dataset.recordId = row.id; // retain the recID in case we need it later
+    opt.value = row.id;         // ⭐ USE RECORD ID
+    opt.textContent = row.name; // Display builder name
     builderSelect.appendChild(opt);
   }
 
   buildersLoaded = true;
   console.log(`✅ Populated ${rows.length} builders into dropdown`);
 }
+
 
 // ------------------------- POPULATE: PLAN/ELEVATION (from Builder record) -------------------------
 async function populatePlanElevation(builderSelectEl) {

@@ -15,6 +15,7 @@ const TAKEOFFS_TABLE_ID2 = "tblZpnyqHJeC1IaZq";
 const SKU_TABLE_ID2 = "tblcG08fWPOesXDfC"; // JSON table
 
 window.skuData = [];
+let builderLookup = {};  
 
 // ==========================================================
 // MAIN APP INITIALIZATION
@@ -85,14 +86,28 @@ async function fetchAllTakeoffs() {
 async function populateBuilders() {
     const all = await fetchAllTakeoffs();
 
-    const builders = [...new Set(
-        all.flatMap(t => t.Builder || [])
-    )].sort();
+    builderLookup = {}; // reset
+
+    all.forEach(t => {
+        if (Array.isArray(t.Builder)) {
+            t.Builder.forEach(b => {
+                // Skip if already added
+                if (!builderLookup[b]) {
+                    // b is the record ID, t["Builder Name"] is unknown so we use Plan records
+                    builderLookup[b] = t["Builder Name"] || b;
+                }
+            });
+        }
+    });
+
+    // Build list of actual display names
+    const builderNames = [...new Set(Object.values(builderLookup))].sort();
 
     builderSelect.innerHTML =
         `<option value="">Select Builder</option>` +
-        builders.map(b => `<option value="${b}">${b}</option>`).join("");
+        builderNames.map(b => `<option value="${b}">${b}</option>`).join("");
 }
+
 async function populatePlans(builder) {
     const all = await fetchAllTakeoffs();
 
@@ -711,7 +726,7 @@ function updateGrandTotal() {
     const url = `https://api.airtable.com/v0/${BASE_ID2}/${TAKEOFFS_TABLE_ID2}/${recId}`;
 
     const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${AIRTABLE_API_KEY2}` },
+        headers: { Authorization: `Bearer ${AIRTABLE_API_KEY2}` },
     });
 
     const data = await res.json();
@@ -723,7 +738,21 @@ function updateGrandTotal() {
     planSelect.value = f["Plan name"] || "";
     elevationSelect.value = f["Elevation"] || "";
     communitySelect.value = f["Community Name"] || "";
-    builderSelect.value = f["Builder"]?.[0] || "";
+
+    // ⭐ FIX: Use friendly builder name
+// FIRST: make sure builder dropdown is populated
+await populateBuilderDropdown();
+
+// THEN: set the builder value
+const builderRecordId = f["Builder"]?.[0];
+
+if (builderRecordId) {
+    builderSelect.value = builderRecordId;
+    console.log("Builder selected:", builderRecordId);
+} else {
+    console.warn("⚠ No builder linked");
+}
+
 
     isLoadingEditMode = false; // allow table reveal
     revealLineItemsSection();
