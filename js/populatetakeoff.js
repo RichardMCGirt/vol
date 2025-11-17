@@ -80,6 +80,38 @@ async function getSkuCountFromJsonRecord(recordId) {
     return 0;
   }
 }
+async function loadExistingTakeoff(recId) {
+  const url = `https://api.airtable.com/v0/${BASE_ID}/${TAKEOFFS_TABLE_ID}/${recId}`;
+
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${AIRTABLE_API_KEY}` }
+  });
+
+  if (!res.ok) {
+    console.error("Failed to load existing takeoff");
+    return;
+  }
+
+  const data = await res.json();
+  const f = data.fields;
+
+  // Fill header fields
+  nameInput.value = f["Takeoff Name"] || "";
+  typeSelect.value = f["Type"] || "";
+  builderSelect.value = f["Builder Name"] || "";
+  planSelect.value = f["Plan"] || "";
+  elevationSelect.value = f["Elevation"] || "";
+  communitySelect.value = f["Community"] || "";
+
+  // Show line items section
+  revealLineItemsSection();
+
+  // Load SKU JSON (SKU table record)
+  if (Array.isArray(f["Takeoff Creation"]) && f["Takeoff Creation"].length > 0) {
+    loadSkuJsonRecord(f["Takeoff Creation"][0]);
+  }
+}
+
 
 // ------------------------- FETCH TAKEOFFS -------------------------
 async function fetchTakeoffs() {
@@ -229,7 +261,11 @@ setTimeout(() => {
         <div class="text-xs text-gray-500">by ${updatedBy}</div>
       </td>
 
-      <td class="py-3 px-3 text-right">⋮</td>
+<td class="py-3 px-3 text-right">
+  <button class="edit-btn text-blue-600 underline" data-id="${id}">
+    Edit
+  </button>
+</td>
     </tr>
   `;
 }
@@ -260,6 +296,18 @@ function enableRowInteractions() {
       updateTakeoff(recId, { Status: newStatus });
     });
   });
+  document.querySelectorAll(".edit-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const recId = btn.dataset.id;
+
+    // Save selected recordId
+    localStorage.setItem("editingTakeoffId", recId);
+
+    // Navigate to editor
+    window.location.href = "takeoff-creation.html";
+  });
+});
+
 }
 
 // ------------------------- UPDATE RECORD -------------------------
@@ -415,4 +463,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     });
   }
+
 });
+

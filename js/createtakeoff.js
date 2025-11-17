@@ -1,17 +1,30 @@
-// createtakeoff.js
+// ==========================================================
+// createtakeoff.js  (FINAL STABLE VERSION)
+// ==========================================================
 
-// URL to your published Google Sheet CSV (DataLoad sheet)
+// Google Sheet CSV for SKU master data
 const TAKEOFF_SHEET_URL =
   "https://docs.google.com/spreadsheets/d/1E3sRhqKfzxwuN6VOmjI2vjWsk_1QALEKkX7mNXzlVH8/gviz/tq?tqx=out:csv&sheet=DataLoad";
 
+// Airtable configs
+const AIRTABLE_API_KEY2 =
+  "pat6QyOfQCQ9InhK4.4b944a38ad4c503a6edd9361b2a6c1e7f02f216ff05605f7690d3adb12c94a3c";
+const BASE_ID2 = "appnZNCcUAJCjGp7L";
+const TAKEOFFS_TABLE_ID2 = "tblZpnyqHJeC1IaZq";
+const SKU_TABLE_ID2 = "tblcG08fWPOesXDfC"; // JSON table
+
 window.skuData = [];
 
-// Main bootstrap
+// ==========================================================
+// MAIN APP INITIALIZATION
+// ==========================================================
 document.addEventListener("DOMContentLoaded", async () => {
-  console.group("🎬 Takeoff Creation Initialization");
+  console.log("🎬 Takeoff Creation Page Ready");
 
-  // ------- Grab DOM elements -------
-  const nameInput = document.querySelector('input[placeholder="E.g., Spanish Style"]');
+  // DOM elements
+  const nameInput = document.querySelector(
+    'input[placeholder="E.g., Spanish Style"]'
+  );
   const typeSelect = document.getElementById("takeoff-type");
   const builderSelect = document.getElementById("builder-select");
   const planSelect = document.getElementById("plan-select");
@@ -20,17 +33,80 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const placeholderBox = document.getElementById("placeholder-box");
   const lineItemsSection = document.getElementById("line-items-section");
-  const addLineItemBtn = document.getElementById("add-line-item");
   const lineItemBody = document.getElementById("line-item-body");
+  const addLineItemBtn = document.getElementById("add-line-item");
 
-  if (!nameInput || !typeSelect || !builderSelect || !planSelect || !elevationSelect || !communitySelect) {
-    console.error("❌ Missing header elements. Check IDs in takeoff-creation.html");
-  }
-  if (!placeholderBox || !lineItemsSection || !addLineItemBtn || !lineItemBody) {
-    console.error("❌ Missing line-item elements. Check placeholder/table IDs in takeoff-creation.html");
+  // MODE FLAGS
+  let editingId = localStorage.getItem("editingTakeoffId");
+  let isLoadingEditMode = false;
+
+  // ==========================================================
+  // 1. LOAD SKU CSV DATA
+  // ==========================================================
+  await fetchSkuData();
+
+  // ==========================================================
+  // 2. IF EDIT MODE → LOAD TAKEOFF AFTER DROPDOWNS POPULATE
+  // ==========================================================
+  if (editingId) {
+    console.log("📝 Edit Mode:", editingId);
+    isLoadingEditMode = true;
+
+    setTimeout(() => loadExistingTakeoff(editingId), 900);
   }
 
-  // ------- Fetch SKU data from CSV -------
+  // ==========================================================
+  // LOGIC TO SHOW TABLE AFTER HEADERS FILLED (CREATE MODE)
+  // ==========================================================
+  function allFieldsFilled() {
+    return (
+      nameInput.value.trim() &&
+      typeSelect.value &&
+      builderSelect.value &&
+      planSelect.value &&
+      elevationSelect.value &&
+      communitySelect.value
+    );
+  }
+
+  function maybeShowLineItems() {
+    if (isLoadingEditMode) return; // prevent flicker during edit load
+    if (allFieldsFilled()) revealLineItemsSection();
+  }
+
+  [
+    nameInput,
+    typeSelect,
+    builderSelect,
+    planSelect,
+    elevationSelect,
+    communitySelect,
+  ]
+    .filter(Boolean)
+    .forEach((el) => {
+      el.addEventListener("change", maybeShowLineItems);
+      el.addEventListener("input", maybeShowLineItems);
+    });
+
+  // ==========================================================
+  // REVEAL TABLE SECTION
+  // ==========================================================
+  function revealLineItemsSection() {
+    placeholderBox.classList.add("hidden");
+    lineItemsSection.classList.remove("hidden");
+    lineItemsSection.style.opacity = "1";
+
+    // CREATE MODE → LOAD CSV SKUs
+    if (!editingId) {
+      console.log("📌 CREATE MODE → Loading SKUs into table...");
+      lineItemBody.innerHTML = "";
+      window.skuData.forEach((skuObj) => addLineItemFromSku(skuObj));
+    }
+  }
+
+  // ==========================================================
+  // LOAD SKU CSV DATA
+  // ==========================================================
   async function fetchSkuData() {
     console.log("📡 Fetching SKU CSV…");
 
@@ -42,113 +118,106 @@ document.addEventListener("DOMContentLoaded", async () => {
       .split("\n")
       .map((r) => r.split(",").map((x) => x.replace(/^"|"$/g, "")));
 
-    console.log("📄 First 5 CSV rows:", rows.slice(0, 5));
-
-  const parsed = rows.map((r) => ({
-  Vendor: r[0],           // Column A
-  SKU: r[1],              // Column B
-  UOM: r[2],              // Column C
-  Description: r[3],      // Column D
-  SKUHelper: r[4],        // Column E
-  UOMMult: parseFloat(r[5]) || 1,     // Column F
-  Cost: parseFloat(r[6]) || 0,        // Column G
-}));
-
+    const parsed = rows.map((r) => ({
+      Vendor: r[0],
+      SKU: r[1],
+      UOM: r[2],
+      Description: r[3],
+      SKUHelper: r[4],
+      UOMMult: parseFloat(r[5]) || 1,
+      Cost: parseFloat(r[6]) || 0,
+    }));
 
     window.skuData = parsed;
-    console.log("📦 Parsed SKU objects:", parsed.slice(0, 5));
+    console.log("📦 SKU parsed:", parsed.slice(0, 5));
   }
 
-  await fetchSkuData();
+  // ==========================================================
+  // ADD LINE ITEM FROM SKU CSV
+  // ==========================================================
+  function addLineItemFromSku(skuObj) {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td><input class="sku-input w-full" placeholder="SKU" value="${skuObj.SKU}"></td>
+      <td><input class="w-full" placeholder="Description" value="${skuObj.Description}"></td>
+      <td><input class="w-full" placeholder="UOM" value="${skuObj.UOM}"></td>
+      <td><input class="w-full" placeholder="Material Type"></td>
+      <td><input class="w-full" placeholder="Color Group"></td>
+      <td><input type="number" class="w-full" placeholder="Qty" value="1"></td>
+      <td><input class="w-full" placeholder="Vendor" value="${skuObj.Vendor}"></td>
+      <td><input type="number" class="w-full" placeholder="Unit Cost" value="${skuObj.Cost}"></td>
+      <td><input type="number" class="w-full" placeholder="UOM Mult" value="${skuObj.UOMMult}"></td>
+      <td><input type="number" class="w-full" placeholder="Ext. Cost"></td>
+      <td><input type="number" class="w-full" placeholder="%"></td>
+      <td><input type="number" class="w-full" placeholder="Total"></td>
+      <td class="text-center"><button class="remove-line text-red-500">🗑️</button></td>
+    `;
 
-  // ------- Header completion logic (show table when ready) -------
-  function allFieldsFilled() {
-    const nameVal = nameInput?.value.trim();
-    const typeVal = typeSelect?.value;
-    const builderVal = builderSelect?.value;
-    const planVal = planSelect?.value;
-    const elevationVal = elevationSelect?.value;
-    const communityVal = communitySelect?.value;
+    lineItemBody.appendChild(row);
+    attachAutocomplete(row.querySelector(".sku-input"));
+    attachCalculators(row);
 
-    return (
-      !!nameVal &&
-      !!typeVal &&
-      !!builderVal &&
-      !!planVal &&
-      !!elevationVal &&
-      !!communityVal
-    );
+    row.querySelector(".remove-line").addEventListener("click", () => row.remove());
   }
 
-  function revealLineItemsSection() {
-    if (!placeholderBox || !lineItemsSection) return;
+  // ==========================================================
+  // ADD BLANK LINE
+  // ==========================================================
+  function addLineItem() {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td><input class="sku-input w-full" placeholder="SKU"></td>
+      <td><input class="w-full" placeholder="Description"></td>
+      <td><input class="w-full" placeholder="UOM"></td>
+      <td><input class="w-full" placeholder="Material Type"></td>
+      <td><input class="w-full" placeholder="Color Group"></td>
+      <td><input type="number" class="w-full" placeholder="Qty"></td>
+      <td><input class="w-full" placeholder="Vendor"></td>
+      <td><input type="number" class="w-full" placeholder="Unit Cost"></td>
+      <td><input type="number" class="w-full" placeholder="UOM Mult"></td>
+      <td><input type="number" class="w-full" placeholder="Ext. Cost"></td>
+      <td><input type="number" class="w-full" placeholder="%"></td>
+      <td><input type="number" class="w-full" placeholder="Total"></td>
+      <td class="text-center"><button class="remove-line text-red-500">🗑️</button></td>
+    `;
 
-    placeholderBox.classList.add("hidden");
-    lineItemsSection.classList.remove("hidden");
+    lineItemBody.appendChild(row);
+    attachAutocomplete(row.querySelector(".sku-input"));
+    attachCalculators(row);
 
-    // Smooth fade-in
-    requestAnimationFrame(() => {
-      lineItemsSection.style.opacity = "1";
-    });
-    if (lineItemBody.children.length === 0) {
-  addLineItem();
-}
-
+    row.querySelector(".remove-line").addEventListener("click", () => row.remove());
   }
 
-  function maybeShowLineItems() {
-    if (allFieldsFilled()) {
-      console.log("✅ Header fields completed — revealing table.");
-      revealLineItemsSection();
-    }
-  }
+  if (addLineItemBtn) addLineItemBtn.addEventListener("click", addLineItem);
 
-  // Attach listeners to all header inputs/selects
-  [nameInput, typeSelect, builderSelect, planSelect, elevationSelect, communitySelect]
-    .filter(Boolean)
-    .forEach((el) => {
-      el.addEventListener("change", maybeShowLineItems);
-      el.addEventListener("input", maybeShowLineItems);
-    });
-
-  // ------- SKU Autocomplete -------
-
+  // ==========================================================
+  // AUTOCOMPLETE
+  // ==========================================================
   function attachAutocomplete(inputEl) {
     if (!inputEl) return;
-    console.log("🧩 Attaching autocomplete to SKU input...");
 
-    let timeoutId = null;
-
+    let timeout;
     inputEl.addEventListener("input", (e) => {
-      const query = e.target.value.trim().toLowerCase();
-      if (query.length < 2) {
-        hideSuggestionList();
-        return;
-      }
+      const q = e.target.value.toLowerCase();
+      if (q.length < 2) return hideSuggestionList();
 
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
-        searchSkuSuggestions(query, inputEl);
-      }, 200);
+      clearTimeout(timeout);
+      timeout = setTimeout(() => searchSkuSuggestions(q, inputEl), 180);
     });
 
-    // Hide suggestions on blur (with slight delay so click can register)
     inputEl.addEventListener("blur", () => {
       setTimeout(() => hideSuggestionList(), 200);
     });
   }
 
   function searchSkuSuggestions(query, inputEl) {
-    console.log(`🔍 Searching SKU suggestions for "${query}"...`);
-
     const matches = window.skuData.filter(
-      (item) =>
-        item.SKU?.toLowerCase().includes(query) ||
-        item.Description?.toLowerCase().includes(query)
+      (i) =>
+        i.SKU.toLowerCase().includes(query) ||
+        i.Description.toLowerCase().includes(query)
     );
 
-    console.log(`💡 Found ${matches.length} matches`);
-    showSuggestions(matches.slice(0, 10), inputEl);
+    showSuggestions(matches.slice(0, 12), inputEl);
   }
 
   function getSuggestionList() {
@@ -164,25 +233,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function hideSuggestionList() {
     const list = document.getElementById("sku-suggestion-list");
-    if (list) {
-      list.style.display = "none";
-      list.innerHTML = "";
-    }
+    if (list) list.style.display = "none";
   }
 
   function showSuggestions(results, inputEl) {
-    if (!inputEl) {
-      console.warn("⚠️ No input element passed to showSuggestions.");
-      return;
-    }
+    if (!results.length) return hideSuggestionList();
 
     const list = getSuggestionList();
     list.innerHTML = "";
-
-    if (results.length === 0) {
-      list.style.display = "none";
-      return;
-    }
 
     const rect = inputEl.getBoundingClientRect();
     list.style.position = "absolute";
@@ -197,168 +255,281 @@ document.addEventListener("DOMContentLoaded", async () => {
       li.style.cursor = "pointer";
 
       li.addEventListener("click", () => {
-        inputEl.value = item.SKU || "";
+        inputEl.value = item.SKU;
 
         const row = inputEl.closest("tr");
-        if (row) {
-          const uomInput = row.querySelector('input[placeholder="UOM"]');
-          const descInput = row.querySelector('input[placeholder="Description"]');
-          const vendorSelect = row.querySelector(".vendor-select");
+        if (!row) return;
 
-         if (uomInput) uomInput.value = item.UOM || "";
-if (descInput) descInput.value = item.Description || "";
+        row.querySelector('input[placeholder="Description"]').value =
+          item.Description || "";
+        row.querySelector('input[placeholder="UOM"]').value = item.UOM || "";
 
-// NEW — pull UOM Multiple + Cost (Unit Cost)
-const uomMultInput = row.querySelector('input[placeholder="UOM Mult"]');
-const costInput = row.querySelector('input[placeholder="Unit Cost"]');
-
-if (uomMultInput) uomMultInput.value = item.UOMMult;
-if (costInput) costInput.value = item.Cost.toFixed(2);
-
-
-          // Populate Vendor dropdown from CSV for this SKU
-          if (vendorSelect) {
-            vendorSelect.innerHTML = `<option value="">Select Vendor</option>`;
-
-            const matchingVendors = window.skuData
-              .filter((v) => v.SKU === item.SKU)
-              .map((v) => v.Vendor)
-              .filter((v) => v && v.trim() !== "");
-
-            const uniqueVendors = [...new Set(matchingVendors)];
-
-            uniqueVendors.forEach((vendor) => {
-              const opt = document.createElement("option");
-              opt.value = vendor;
-              opt.textContent = vendor;
-              vendorSelect.appendChild(opt);
-            });
-
-            console.log(
-              "📦 Vendor dropdown populated from CSV for SKU:",
-              item.SKU,
-              "Vendors:",
-              uniqueVendors
-            );
-          }
-        }
+        row.querySelector('input[placeholder="Unit Cost"]').value =
+          item.Cost.toFixed(2);
+        row.querySelector('input[placeholder="UOM Mult"]').value =
+          item.UOMMult;
 
         hideSuggestionList();
-        console.log(`✅ Selected SKU: ${item.SKU}`);
       });
 
       list.appendChild(li);
     });
   }
 
-  // ------- Line Item Row Logic -------
-
-  function addLineItem() {
-    if (!lineItemBody) return;
-
-    const row = document.createElement("tr");
-    row.classList.add("relative");
-
-    row.innerHTML = `
-      <td class="border px-2 py-1 relative">
-        <input class="sku-input w-full border-none focus:ring-0 text-sm" placeholder="SKU">
-      </td>
-      <td class="border px-2 py-1">
-        <input class="w-full border-none text-sm" placeholder="Description">
-      </td>
-      <td class="border px-2 py-1">
-        <input class="w-full border-none text-sm" placeholder="UOM">
-      </td>
-      <td class="border px-2 py-1">
-        <input class="w-full border-none text-sm" placeholder="Material Type">
-      </td>
-      <td class="border px-2 py-1">
-        <input class="w-full border-none text-sm" placeholder="Color Group">
-      </td>
-      <td class="border px-2 py-1">
-        <input type="number" class="w-full border-none text-sm" placeholder="Qty">
-      </td>
-      <td class="border px-2 py-1">
-        <select class="vendor-select w-full border border-gray-300 rounded-md text-sm">
-          <option value="">Select Vendor</option>
-        </select>
-      </td>
-      <td class="border px-2 py-1">
-        <input type="number" class="w-full border-none text-sm" placeholder="Unit Cost">
-      </td>
-      <td class="border px-2 py-1">
-        <input type="number" class="w-full border-none text-sm" placeholder="UOM Mult">
-      </td>
-      <td class="border px-2 py-1">
-        <input type="number" class="w-full border-none text-sm" placeholder="Ext. Cost">
-      </td>
-      <td class="border px-2 py-1">
-        <input type="number" class="w-full border-none text-sm" placeholder="%">
-      </td>
-      <td class="border px-2 py-1">
-        <input type="number" class="w-full border-none text-sm" placeholder="Total">
-      </td>
-      <td class="border px-2 py-1 text-center">
-        <button class="text-red-500 hover:text-red-700 remove-line">🗑️</button>
-      </td>
-    `;
-
-    lineItemBody.appendChild(row);
-    console.log("➕ Added new line item row");
-
-const skuInput = row.querySelector(".sku-input");
-attachAutocomplete(skuInput);
-
-// Activate calculators
-attachCalculators(row);
-
-// Row delete button
-const removeBtn = row.querySelector(".remove-line");
-if (removeBtn) {
-  removeBtn.addEventListener("click", () => {
-    console.warn("🗑️ Line item removed");
-    row.remove();
-  });
-}
-
-  }
-
-  // Attach click handler to Add Line Item button
-  if (addLineItemBtn) {
-    addLineItemBtn.addEventListener("click", () => {
-      console.log("🖱️ Add Line Item button clicked");
-      addLineItem();
-    });
-  } else {
-    console.error("❌ add-line-item button not found in DOM.");
-  }
-
-  console.groupEnd();
-
+  // ==========================================================
+  // CALCULATOR
+  // ==========================================================
   function attachCalculators(row) {
-  const qtyInput = row.querySelector('input[placeholder="Qty"]');
-  const unitCostInput = row.querySelector('input[placeholder="Unit Cost"]');
-  const extCostInput = row.querySelector('input[placeholder="Ext. Cost"]');
-  const marginInput = row.querySelector('input[placeholder="%"]');
-  const totalInput = row.querySelector('input[placeholder="Total"]');
+    const qty = row.querySelector('input[placeholder="Qty"]');
+    const cost = row.querySelector('input[placeholder="Unit Cost"]');
+    const ext = row.querySelector('input[placeholder="Ext. Cost"]');
+    const margin = row.querySelector('input[placeholder="%"]');
+    const total = row.querySelector('input[placeholder="Total"]');
 
-  function calculate() {
-    const qty = parseFloat(qtyInput.value) || 0;
-    const unitCost = parseFloat(unitCostInput.value) || 0;
+    function recalc() {
+      const q = parseFloat(qty.value) || 0;
+      const c = parseFloat(cost.value) || 0;
+      const e = q * c;
+      ext.value = e.toFixed(2);
 
-    // Extended Cost = Qty × Unit Cost
-    const ext = qty * unitCost;
-    extCostInput.value = ext.toFixed(2);
+      const m = parseFloat(margin.value) || 0;
+      total.value = (e * (1 + m / 100)).toFixed(2);
+    }
 
-    // Total Price = Ext × (1 + margin %)
-    const margin = parseFloat(marginInput.value) || 0;
-    const total = ext * (1 + margin / 100);
-    totalInput.value = total.toFixed(2);
+    qty.addEventListener("input", recalc);
+    cost.addEventListener("input", recalc);
+    margin.addEventListener("input", recalc);
   }
 
-  qtyInput.addEventListener("input", calculate);
-  unitCostInput.addEventListener("input", calculate);
-  marginInput.addEventListener("input", calculate);
-}
+  // ==========================================================
+  // EDIT MODE → LOAD TAKEOFF
+  // ==========================================================
+  async function loadExistingTakeoff(recId) {
+    console.log("📥 Loading existing takeoff…");
 
-});
+    const url = `https://api.airtable.com/v0/${BASE_ID2}/${TAKEOFFS_TABLE_ID2}/${recId}`;
+
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${AIRTABLE_API_KEY2}` },
+    });
+
+    const data = await res.json();
+    const f = data.fields;
+
+    // HEADER POPULATE
+    nameInput.value = f["Plan name"] || f["Takeoff Name"] || "";
+    typeSelect.value = f["Type"] || "";
+    planSelect.value = f["Plan name"] || "";
+    elevationSelect.value = f["Elevation"] || "";
+    communitySelect.value = f["Community Name"] || "";
+    builderSelect.value = f["Builder"]?.[0] || "";
+
+    isLoadingEditMode = false; // allow table reveal
+    revealLineItemsSection();
+
+    // LOAD JSON ROW
+    if (f["Takeoff Creation"] && f["Takeoff Creation"].length > 0) {
+      await loadSkuJsonRecord(f["Takeoff Creation"][0]);
+    }
+  }
+
+  // ==========================================================
+  // LOAD JSON CONTENT INTO TABLE
+  // ==========================================================
+  async function loadSkuJsonRecord(jsonRecordId) {
+    console.log("📦 Loading JSON SKU record:", jsonRecordId);
+
+    const url = `https://api.airtable.com/v0/${BASE_ID2}/${SKU_TABLE_ID2}/${jsonRecordId}`;
+
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${AIRTABLE_API_KEY2}` },
+    });
+
+    const data = await res.json();
+    const json = JSON.parse(data.fields["Imported JSON"] || "[]");
+
+    lineItemBody.innerHTML = "";
+
+    json.forEach((item) => {
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td><input class="sku-input w-full" value="${item.SKU || ""}" placeholder="SKU"></td>
+        <td><input class="w-full" value="${item.Description || ""}" placeholder="Description"></td>
+        <td><input class="w-full" value="${item.UOM || ""}" placeholder="UOM"></td>
+        <td><input class="w-full" value="${item["Material Type"] || ""}" placeholder="Material Type"></td>
+        <td><input class="w-full" value="${item["Color Group"] || ""}" placeholder="Color Group"></td>
+        <td><input class="w-full" value="${item.Qty || ""}" placeholder="Qty"></td>
+        <td><input class="w-full" value="${item.Vendor || ""}" placeholder="Vendor"></td>
+        <td><input class="w-full" value="${item["Unit Cost"] || ""}" placeholder="Unit Cost"></td>
+        <td><input class="w-full" value="${item["UOM Mult"] || ""}" placeholder="UOM Mult"></td>
+        <td><input class="w-full" value="${item["Ext. Cost"] || ""}" placeholder="Ext. Cost"></td>
+        <td><input class="w-full" value="${item["%"] || ""}" placeholder="%"></td>
+        <td><input class="w-full" value="${item.Total || ""}" placeholder="Total"></td>
+        <td class="text-center"><button class="remove-line text-red-500">🗑️</button></td>
+      `;
+
+      lineItemBody.appendChild(row);
+      attachAutocomplete(row.querySelector(".sku-input"));
+      attachCalculators(row);
+
+      row.querySelector(".remove-line").addEventListener("click", () => row.remove());
+    });
+  }
+}); // END DOM LOADED
+
+// ==========================================================
+// SAVE TAKEOFF (CALLED FROM HTML BUTTON)
+// ==========================================================
+async function saveTakeoff() {
+  const editingId = localStorage.getItem("editingTakeoffId");
+
+  // Collect header fields
+  const fields = {
+    "Takeoff Name": document.querySelector(
+      'input[placeholder="E.g., Spanish Style"]'
+    ).value,
+    "Type": document.getElementById("takeoff-type").value,
+    "Builder": [document.getElementById("builder-select").value],
+    "Plan name": document.getElementById("plan-select").value,
+    "Elevation": document.getElementById("elevation-select").value,
+    "Community Name": document.getElementById("community-select").value,
+  };
+
+  // Build line item JSON
+  const rows = [...document.querySelectorAll("#line-item-body tr")].map(
+    (row) => {
+      const inputs = row.querySelectorAll("input");
+      const [
+        sku,
+        desc,
+        uom,
+        mat,
+        color,
+        qty,
+        vendor,
+        cost,
+        mult,
+        ext,
+        margin,
+        total,
+      ] = inputs;
+
+      return {
+        SKU: sku.value,
+        Description: desc.value,
+        UOM: uom.value,
+        "Material Type": mat.value,
+        "Color Group": color.value,
+        Qty: qty.value,
+        Vendor: vendor.value,
+        "Unit Cost": cost.value,
+        "UOM Mult": mult.value,
+        "Ext. Cost": ext.value,
+        "%": margin.value,
+        Total: total.value,
+      };
+    }
+  );
+
+  // SAVE JSON RECORD FIRST
+  let jsonRecordId;
+
+  if (editingId) {
+    // fetch main record
+    const res = await fetch(
+      `https://api.airtable.com/v0/${BASE_ID2}/${TAKEOFFS_TABLE_ID2}/${editingId}`,
+      { headers: { Authorization: `Bearer ${AIRTABLE_API_KEY2}` } }
+    );
+
+    const rec = await res.json();
+
+    // If JSON record exists → update it
+    if (rec.fields["Takeoff Creation"]) {
+      jsonRecordId = rec.fields["Takeoff Creation"][0];
+
+      await fetch(
+        `https://api.airtable.com/v0/${BASE_ID2}/${SKU_TABLE_ID2}/${jsonRecordId}`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${AIRTABLE_API_KEY2}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            fields: { "Imported JSON": JSON.stringify(rows) },
+          }),
+        }
+      );
+    } else {
+      // No JSON record → create one
+      const createRes = await fetch(
+        `https://api.airtable.com/v0/${BASE_ID2}/${SKU_TABLE_ID2}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${AIRTABLE_API_KEY2}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            fields: { "Imported JSON": JSON.stringify(rows) },
+          }),
+        }
+      );
+
+      const newJson = await createRes.json();
+      jsonRecordId = newJson.id;
+
+      fields["Takeoff Creation"] = [jsonRecordId];
+    }
+  } else {
+    // NEW TAKEOFF MODE
+    const createRes = await fetch(
+      `https://api.airtable.com/v0/${BASE_ID2}/${SKU_TABLE_ID2}`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${AIRTABLE_API_KEY2}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fields: { "Imported JSON": JSON.stringify(rows) },
+        }),
+      }
+    );
+
+    const newJson = await createRes.json();
+    jsonRecordId = newJson.id;
+
+    fields["Takeoff Creation"] = [jsonRecordId];
+  }
+
+  // SAVE MAIN TAKEOFF RECORD
+  if (editingId) {
+    await fetch(
+      `https://api.airtable.com/v0/${BASE_ID2}/${TAKEOFFS_TABLE_ID2}/${editingId}`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${AIRTABLE_API_KEY2}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ fields }),
+      }
+    );
+  } else {
+    await fetch(
+      `https://api.airtable.com/v0/${BASE_ID2}/${TAKEOFFS_TABLE_ID2}`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${AIRTABLE_API_KEY2}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ fields }),
+      }
+    );
+  }
+
+  alert("Saved successfully!");
+  window.location.href = "takeoff.html";
+}
