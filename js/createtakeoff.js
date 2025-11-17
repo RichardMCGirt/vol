@@ -161,14 +161,19 @@ document.addEventListener("DOMContentLoaded", async () => {
 <td><input class="cost-input w-full" type="number" value=""></td>
 <td><input class="mult-input w-full" type="number" value="1"></td>
 
-<td><input class="extcost-input w-full" type="number" value="" readonly></td>
+<td><input class="extcost-input w-full" type="number" readonly></td>
 
 <td><input class="percent-input w-full" type="number" value="0"></td>
 
-<td><input class="total-input w-full" type="number" value="" readonly></td>
+<td><input class="total-input w-full" type="number" readonly></td>
 
-<td class="text-center"><button class="remove-line text-red-500">🗑️</button></td>
+<td class="text-center">
+    <button class="remove-line text-red-500">🗑️</button>
+</td>
+
 `;
+console.log(row.outerHTML);
+console.log("DEBUG ROW:", row.outerHTML);
 
 
     lineItemBody.appendChild(row);
@@ -182,31 +187,40 @@ attachAutocomplete(row.querySelector(".vendor-input"), "vendor");
   // ==========================================================
   // ADD BLANK LINE
   // ==========================================================
-  function addLineItem() {
+function addLineItem() {
     const row = document.createElement("tr");
     row.innerHTML = `
-      <td><input class="sku-input w-full" placeholder="SKU"></td>
-      <td><input class="w-full" placeholder="Description"></td>
-      <td><input class="w-full" placeholder="UOM"></td>
-      <td><input class="w-full" placeholder="Material Type"></td>
-      <td><input class="w-full" placeholder="Color Group"></td>
-      <td><input type="number" class="w-full" placeholder="Qty"></td>
-<td><input class="vendor-input w-full" placeholder="Vendor"></td>
-      <td><input type="number" class="w-full" placeholder="Unit Cost"></td>
-      <td><input type="number" class="w-full" placeholder="UOM Mult"></td>
-      <td><input type="number" class="w-full" placeholder="Ext. Cost"></td>
-      <td><input type="number" class="w-full" placeholder="%"></td>
-      <td><input type="number" class="w-full" placeholder="Total"></td>
-      <td class="text-center"><button class="remove-line text-red-500">🗑️</button></td>
+<td><input class="sku-input w-full" value=""></td>
+<td><input class="desc-input w-full" value=""></td>
+<td><input class="uom-input w-full" value=""></td>
+<td><input class="mat-input w-full" value=""></td>
+<td><input class="color-input w-full" value=""></td>
+
+<td><input class="qty-input w-full" type="number" value="1"></td>
+
+<td><input class="vendor-input w-full" value=""></td>
+
+<td><input class="cost-input w-full" type="number" value=""></td>
+<td><input class="mult-input w-full" type="number" value="1"></td>
+
+<td><input class="extcost-input w-full" type="number" value="" readonly></td>
+
+<td><input class="percent-input w-full" type="number" value="0"></td>
+
+<td><input class="total-input w-full" type="number" value="" readonly></td>
+
+<td class="text-center"><button class="remove-line text-red-500">🗑️</button></td>
     `;
 
     lineItemBody.appendChild(row);
-attachAutocomplete(row.querySelector(".sku-input"), "sku");
-attachAutocomplete(row.querySelector(".vendor-input"), "vendor");
+
+    attachAutocomplete(row.querySelector(".sku-input"), "sku");
+    attachAutocomplete(row.querySelector(".vendor-input"), "vendor");
     attachCalculators(row);
 
     row.querySelector(".remove-line").addEventListener("click", () => row.remove());
-  }
+}
+
 
   if (addLineItemBtn) addLineItemBtn.addEventListener("click", addLineItem);
 
@@ -333,6 +347,47 @@ function attachCalculators(row) {
     const list = document.getElementById("sku-suggestion-list");
     if (list) list.style.display = "none";
   }
+function fillRowFromSku(row, item) {
+    if (!row || !item) {
+        console.warn("❗ fillRowFromSku called without row or item:", {row, item});
+        return;
+    }
+
+    const map = {
+        ".desc-input": item.Description,
+        ".uom-input": item.UOM,
+        ".mat-input": item["Material Type"],
+        ".color-input": item["Color Group"],
+        ".vendor-input": item.Vendor,
+        ".cost-input": item.Cost,
+        ".mult-input": item.UOMMult,
+    };
+
+    Object.entries(map).forEach(([selector, value]) => {
+        const input = row.querySelector(selector);
+        if (!input) {
+            console.warn(`⚠️ Missing input for selector: ${selector}`);
+            console.warn("Row HTML:", row.outerHTML);
+            return;
+        }
+        input.value = value ?? "";
+    });
+
+    calculateRowTotals(row);
+}
+
+
+function fillVendorDetails(row, item) {
+    if (!row || !item) return;
+
+    row.querySelector(".vendor-input").value = item.Vendor || "";
+    row.querySelector(".cost-input").value   = item.Cost || 0;
+    row.querySelector(".mult-input").value   = item.UOMMult || 1;
+
+    calculateRowTotals(row);
+}
+
+
 
 function showSuggestions(results, inputEl, mode = "sku") {
     // Remove any existing dropdown
@@ -374,25 +429,33 @@ function showSuggestions(results, inputEl, mode = "sku") {
         }
 
         li.addEventListener("click", () => {
-            console.log("🖱 Selected suggestion:", li.textContent);
+    console.log("🖱 Selected suggestion:", li.textContent);
 
-            const row = inputEl.closest("tr"); // <-- FIXED (now defined)
+    const row = inputEl.closest("tr");
 
-            if (mode === "sku") {
-                inputEl.value = item.SKU;
-                fillRowFromSku(row, item);
-                calculateRowTotals(row); // <-- runs totals after SKU fills
-            }
+    if (mode === "sku") {
+        inputEl.value = item.SKU;
+console.log("FILL DEBUG:", {
+    rowHTML: row.outerHTML,
+    skuItem: item
+});
 
-            else if (mode === "vendor") {
-                inputEl.value = item.Vendor;
-                fillVendorDetails(row, item);
-                calculateRowTotals(row); // <-- runs totals after cost/mult changes
-            }
+fillRowFromSku(row, item);
+    } else if (mode === "vendor") {
+        inputEl.value = item.Vendor;
+        fillVendorDetails(row, item);
+    }
 
-            hideSuggestionList();
-            inputEl.dispatchEvent(new Event("input"));
-        });
+    // 🔥 Recalculate because fields changed
+    calculateRowTotals(row);
+
+    // 🔥 Hide dropdown AFTER selecting
+    hideSuggestionList();
+
+    // 🔥 Allow new suggestions when typing again
+    inputEl.dispatchEvent(new Event("input"));
+});
+
 
         list.appendChild(li);
     });
@@ -504,7 +567,7 @@ function attachCalculators(row) {
 <td><input class="mat-input w-full" value="${item["Material Type"] || ""}"></td>
 <td><input class="color-input w-full" value="${item["Color Group"] || ""}"></td>
 
-<td><input class="qty-input w-full" type="number" value="${parseFloat(item.Qty) || 1}">
+<td><input class="qty-input w-full" type="number" value="${item.Qty || 1}"></td>
 
 <td><input class="vendor-input w-full" value="${item.Vendor || ""}"></td>
 
@@ -517,9 +580,13 @@ function attachCalculators(row) {
 
 <td><input class="total-input w-full" type="number" value="${item.Total || 0}" readonly></td>
 
-<td class="text-center"><button class="remove-line text-red-500">🗑️</button></td>
+<td class="text-center">
+    <button class="remove-line text-red-500">🗑️</button>
+</td>
 `;
 
+console.log(row.outerHTML);
+console.log("DEBUG ROW:", row.outerHTML);
 
       lineItemBody.appendChild(row);
 attachAutocomplete(row.querySelector(".sku-input"), "sku");
