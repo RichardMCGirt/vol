@@ -243,7 +243,21 @@
   <!-- Line Items Table (hidden initially) -->
   <section id="line-items-section" class="hidden mt-6 bg-white border border-gray-200 rounded-lg shadow-sm p-4 opacity-0 transition-opacity duration-500">
     <h2 class="text-lg font-semibold text-gray-700 mb-3">Takeoff Line Items</h2>
-
+<button id="save-takeoff" class="bg-blue-600 text-white px-4 py-2 rounded">
+    💾 Save
+</button>
+<div id="toast" style="
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: #333;
+  color: white;
+  padding: 10px 14px;
+  border-radius: 6px;
+  opacity: 0;
+  transition: opacity .3s ease;
+  pointer-events: none;">
+</div>
     <table class="min-w-full text-sm border-collapse border border-gray-200 rounded-md overflow-hidden">
       <thead class="bg-gray-100 border-b border-gray-200">
         <tr class="text-gray-600 text-xs uppercase tracking-wider">
@@ -263,6 +277,16 @@
         </tr>
       </thead>
       <tbody id="line-item-body" class="text-gray-700"></tbody>
+      <tfoot>
+  <tr>
+    <td colspan="11" class="text-right font-bold pr-3">Grand Total:</td>
+    <td>
+      <input id="grand-total" class="w-full font-bold" type="number" readonly value="0">
+    </td>
+    <td></td>
+  </tr>
+</tfoot>
+
     </table>
 
     <div class="mt-4">

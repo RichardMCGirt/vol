@@ -147,18 +147,19 @@ document.addEventListener("DOMContentLoaded", async () => {
   // ==========================================================
   function addLineItemFromSku(skuObj) {
     const row = document.createElement("tr");
-    row.innerHTML = `
-<td><input class="sku-input w-full" value=""></td>
-<td><input class="desc-input w-full" value=""></td>
-<td><input class="uom-input w-full" value=""></td>
-<td><input class="mat-input w-full" value=""></td>
-<td><input class="color-input w-full" value=""></td>
+row.innerHTML = `
+<td><input class="sku-input w-full"></td>
+<td><input class="desc-input w-full"></td>
+<td><input class="uom-input w-full"></td>
+
+<td><input class="mat-input w-full"></td>
+<td><input class="color-input w-full"></td>
 
 <td><input class="qty-input w-full" type="number" value="1"></td>
 
-<td><input class="vendor-input w-full" value=""></td>
+<td><input class="vendor-input w-full"></td>
 
-<td><input class="cost-input w-full" type="number" value=""></td>
+<td><input class="cost-input w-full" type="number"></td>
 <td><input class="mult-input w-full" type="number" value="1"></td>
 
 <td><input class="extcost-input w-full" type="number" readonly></td>
@@ -170,8 +171,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 <td class="text-center">
     <button class="remove-line text-red-500">🗑️</button>
 </td>
-
 `;
+
 console.log(row.outerHTML);
 console.log("DEBUG ROW:", row.outerHTML);
 
@@ -182,6 +183,8 @@ attachAutocomplete(row.querySelector(".vendor-input"), "vendor");
     attachCalculators(row);
 
     row.querySelector(".remove-line").addEventListener("click", () => row.remove());
+        updateGrandTotal();   // <-- add this!
+
   }
 
   // ==========================================================
@@ -219,6 +222,8 @@ function addLineItem() {
     attachCalculators(row);
 
     row.querySelector(".remove-line").addEventListener("click", () => row.remove());
+        updateGrandTotal();   // <-- add this!
+
 }
 
 
@@ -314,35 +319,6 @@ function calculateRowTotals(row) {
     console.log("🧮 Row recalculated:", { qty, cost, mult, margin, extCost, total });
 }
 
-
-function attachCalculators(row) {
-    const qty = row.querySelector(".qty-input");
-    const cost = row.querySelector(".cost-input");
-    const mult = row.querySelector(".mult-input");
-    const percent = row.querySelector(".percent-input");
-
-    function recalc() {
-        calculateRowTotals(row);
-    }
-
-    qty?.addEventListener("input", recalc);
-    cost?.addEventListener("input", recalc);
-    mult?.addEventListener("input", recalc);
-    percent?.addEventListener("input", recalc);
-}
-
-
-  function getSuggestionList() {
-    let list = document.getElementById("sku-suggestion-list");
-    if (!list) {
-      list = document.createElement("ul");
-      list.id = "sku-suggestion-list";
-      list.className = "sku-suggestion-list";
-      document.body.appendChild(list);
-    }
-    return list;
-  }
-
   function hideSuggestionList() {
     const list = document.getElementById("sku-suggestion-list");
     if (list) list.style.display = "none";
@@ -388,6 +364,72 @@ function fillVendorDetails(row, item) {
 }
 
 
+async function saveTakeoff() {
+    console.log("💾 Saving takeoff...");
+
+    const rows = [...document.querySelectorAll("#line-item-body tr")];
+
+    const items = rows.map(row => ({
+        SKU: row.querySelector(".sku-input")?.value || "",
+        Description: row.querySelector(".desc-input")?.value || "",
+        UOM: row.querySelector(".uom-input")?.value || "",
+        "Material Type": row.querySelector(".mat-input")?.value || "",
+        "Color Group": row.querySelector(".color-input")?.value || "",
+
+        Qty: Number(row.querySelector(".qty-input")?.value || 0),
+        Vendor: row.querySelector(".vendor-input")?.value || "",
+        "Unit Cost": Number(row.querySelector(".cost-input")?.value || 0),
+        "UOM Mult": Number(row.querySelector(".mult-input")?.value || 1),
+
+        "Ext. Cost": Number(row.querySelector(".extcost-input")?.value || 0),
+        "%": Number(row.querySelector(".percent-input")?.value || 0),
+        Total: Number(row.querySelector(".total-input")?.value || 0)
+    }));
+
+    console.log("📦 JSON being saved:", items);
+
+    const jsonString = JSON.stringify(items);
+
+    // --- YOU MUST ALREADY KNOW THE RECORD ID ---
+    const recordId = window.currentTakeoffRecordId;
+    if (!recordId) {
+        alert("❌ No record ID found to save to Airtable!");
+        return;
+    }
+
+    const url = `https://api.airtable.com/v0/${BASE_ID2}/${SKU_TABLE_ID2}/${recordId}`;
+
+    const res = await fetch(url, {
+        method: "PATCH",
+        headers: {
+            "Authorization": `Bearer ${AIRTABLE_API_KEY2}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            fields: {
+                "Imported JSON": jsonString
+            }
+        })
+    });
+
+    if (!res.ok) {
+        console.error("❌ Airtable Save Error:", await res.text());
+        alert("Failed to save!");
+        return;
+    }
+
+    console.log("✅ Saved successfully!");
+    showToast("Takeoff saved successfully!");
+}
+function showToast(msg) {
+    const toast = document.getElementById("toast");
+    toast.textContent = msg;
+    toast.style.opacity = "1";
+
+    setTimeout(() => {
+        toast.style.opacity = "0";
+    }, 2000);
+}
 
 function showSuggestions(results, inputEl, mode = "sku") {
     // Remove any existing dropdown
@@ -478,7 +520,6 @@ function attachCalculators(row) {
     const margin = row.querySelector(".percent-input");
     const total = row.querySelector(".total-input");
 
-    // If any input is missing, skip this row
     if (!qty || !cost || !mult || !ext || !margin || !total) {
         console.warn("⚠️ Calculator skipped — missing inputs:", row);
         return;
@@ -497,6 +538,8 @@ function attachCalculators(row) {
         total.value = totalCost.toFixed(2);
 
         console.log("🧮 Row recalculated:", { q, c, m, p, extCost, totalCost });
+
+        updateGrandTotal();  // <-- 🔥 IMPORTANT
     }
 
     qty.addEventListener("input", recalc);
@@ -504,8 +547,22 @@ function attachCalculators(row) {
     mult.addEventListener("input", recalc);
     margin.addEventListener("input", recalc);
 
-    // Initial calculation on load
     recalc();
+}
+
+
+function updateGrandTotal() {
+    const totalInputs = document.querySelectorAll(".total-input");
+    let sum = 0;
+
+    totalInputs.forEach(i => {
+        const v = parseFloat(i.value);
+        if (!isNaN(v)) sum += v;
+    });
+
+    document.getElementById("grand-total").value = sum.toFixed(2);
+
+    console.log("💰 Updated Grand Total:", sum);
 }
 
 
@@ -560,10 +617,11 @@ function attachCalculators(row) {
 
    json.forEach((item) => {
   const row = document.createElement("tr");
- row.innerHTML = `
+row.innerHTML = `
 <td><input class="sku-input w-full" value="${item.SKU || ""}"></td>
 <td><input class="desc-input w-full" value="${item.Description || ""}"></td>
 <td><input class="uom-input w-full" value="${item.UOM || ""}"></td>
+
 <td><input class="mat-input w-full" value="${item["Material Type"] || ""}"></td>
 <td><input class="color-input w-full" value="${item["Color Group"] || ""}"></td>
 
@@ -585,6 +643,7 @@ function attachCalculators(row) {
 </td>
 `;
 
+
 console.log(row.outerHTML);
 console.log("DEBUG ROW:", row.outerHTML);
 
@@ -594,6 +653,8 @@ attachAutocomplete(row.querySelector(".vendor-input"), "vendor");
       attachCalculators(row);
 
       row.querySelector(".remove-line").addEventListener("click", () => row.remove());
+          updateGrandTotal();   // <-- add this!
+
     });
   }
 }); // END DOM LOADED
