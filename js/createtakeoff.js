@@ -40,6 +40,23 @@ document.addEventListener("DOMContentLoaded", async () => {
   // MODE FLAGS
   let editingId = localStorage.getItem("editingTakeoffId");
   let isLoadingEditMode = false;
+// Load builders immediately
+populateBuilders();
+
+// When Builder selected → Load Plans
+builderSelect.addEventListener("change", e => {
+    populatePlans(e.target.value);
+});
+
+// When Plan selected → Load Elevations
+planSelect.addEventListener("change", () => {
+    populateElevations(builderSelect.value, planSelect.value);
+});
+
+// When Elevation selected → Load Communities
+elevationSelect.addEventListener("change", () => {
+    populateCommunities(builderSelect.value, planSelect.value, elevationSelect.value);
+});
 
   // ==========================================================
   // 1. LOAD SKU CSV DATA
@@ -55,6 +72,70 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     setTimeout(() => loadExistingTakeoff(editingId), 900);
   }
+async function fetchAllTakeoffs() {
+    const url = `https://api.airtable.com/v0/${BASE_ID2}/${TAKEOFFS_TABLE_ID2}?pageSize=100`;
+
+    const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${AIRTABLE_API_KEY2}` }
+    });
+
+    const json = await res.json();
+    return json.records.map(r => r.fields);
+}
+async function populateBuilders() {
+    const all = await fetchAllTakeoffs();
+
+    const builders = [...new Set(
+        all.flatMap(t => t.Builder || [])
+    )].sort();
+
+    builderSelect.innerHTML =
+        `<option value="">Select Builder</option>` +
+        builders.map(b => `<option value="${b}">${b}</option>`).join("");
+}
+async function populatePlans(builder) {
+    const all = await fetchAllTakeoffs();
+
+    const plans = [...new Set(
+        all
+            .filter(t => (t.Builder || []).includes(builder))
+            .map(t => t["Plan name"])
+    )].sort();
+
+    planSelect.innerHTML =
+        `<option value="">Select Plan</option>` +
+        plans.map(p => `<option value="${p}">${p}</option>`).join("");
+}
+async function populateElevations(builder, plan) {
+    const all = await fetchAllTakeoffs();
+
+    const elevs = [...new Set(
+        all
+            .filter(t => (t.Builder || []).includes(builder) && t["Plan name"] === plan)
+            .map(t => t["Elevation"])
+    )].sort();
+
+    elevationSelect.innerHTML =
+        `<option value="">Select Elevation</option>` +
+        elevs.map(e => `<option value="${e}">${e}</option>`).join("");
+}
+async function populateCommunities(builder, plan, elevation) {
+    const all = await fetchAllTakeoffs();
+
+    const comms = [...new Set(
+        all
+            .filter(t =>
+                (t.Builder || []).includes(builder) &&
+                t["Plan name"] === plan &&
+                t["Elevation"] === elevation
+            )
+            .map(t => t["Community Name"])
+    )].sort();
+
+    communitySelect.innerHTML =
+        `<option value="">Select Community</option>` +
+        comms.map(c => `<option value="${c}">${c}</option>`).join("");
+}
 
   // ==========================================================
   // LOGIC TO SHOW TABLE AFTER HEADERS FILLED (CREATE MODE)
@@ -154,10 +235,10 @@ row.innerHTML = `
 
 <td><input class="mat-input w-full"></td>
 <td><input class="color-input w-full"></td>
+<td><input class="vendor-input w-full"></td>
 
 <td><input class="qty-input w-full" type="number" value="1"></td>
 
-<td><input class="vendor-input w-full"></td>
 
 <td><input class="cost-input w-full" type="number"></td>
 <td><input class="mult-input w-full" type="number" value="1"></td>
@@ -178,11 +259,14 @@ console.log("DEBUG ROW:", row.outerHTML);
 
 
     lineItemBody.appendChild(row);
+    enableVendorClickDropdown(row.querySelector(".vendor-input"));
+
 attachAutocomplete(row.querySelector(".sku-input"), "sku");
-attachAutocomplete(row.querySelector(".vendor-input"), "vendor");
     attachCalculators(row);
 
     row.querySelector(".remove-line").addEventListener("click", () => row.remove());
+    enableVendorClickDropdown(row.querySelector(".vendor-input"));
+
         updateGrandTotal();   // <-- add this!
 
   }
@@ -198,10 +282,10 @@ function addLineItem() {
 <td><input class="uom-input w-full" value=""></td>
 <td><input class="mat-input w-full" value=""></td>
 <td><input class="color-input w-full" value=""></td>
+<td><input class="vendor-input w-full" value=""></td>
 
 <td><input class="qty-input w-full" type="number" value="1"></td>
 
-<td><input class="vendor-input w-full" value=""></td>
 
 <td><input class="cost-input w-full" type="number" value=""></td>
 <td><input class="mult-input w-full" type="number" value="1"></td>
@@ -216,12 +300,14 @@ function addLineItem() {
     `;
 
     lineItemBody.appendChild(row);
+enableVendorClickDropdown(row.querySelector(".vendor-input"));
 
     attachAutocomplete(row.querySelector(".sku-input"), "sku");
-    attachAutocomplete(row.querySelector(".vendor-input"), "vendor");
     attachCalculators(row);
 
     row.querySelector(".remove-line").addEventListener("click", () => row.remove());
+    enableVendorClickDropdown(row.querySelector(".vendor-input"));
+
         updateGrandTotal();   // <-- add this!
 
 }
@@ -256,23 +342,34 @@ function searchSkuSuggestions(query, inputEl, mode) {
   // ==========================
   // Vendor Autocomplete Mode
   // ==========================
-  if (mode === "vendor") {
+// ==========================
+// Vendor Autocomplete Mode
+// ==========================
+if (mode === "vendor") {
 
     const row = inputEl.closest("tr");
     if (!row) return hideSuggestionList();
 
-    const skuVal = row.querySelector(".sku-input")?.value || "";
+    const skuVal = row.querySelector(".sku-input")?.value?.trim() || "";
     if (!skuVal) return hideSuggestionList();
 
-    // Filter vendors for this SKU only
-    matches = window.skuData.filter(
-      (i) =>
+    // Filter ONLY vendors offering THIS EXACT SKU
+    matches = window.skuData.filter(i =>
         normalize(i.SKU) === normalize(skuVal) &&
         normalize(i.Vendor).includes(normalize(query))
     );
 
+    // Remove duplicates
+    const seen = new Set();
+    matches = matches.filter(i => {
+        if (seen.has(i.Vendor)) return false;
+        seen.add(i.Vendor);
+        return true;
+    });
+
     return showSuggestions(matches.slice(0, 10), inputEl, mode);
-  }
+}
+
 
   // ==========================
   // SKU Autocomplete Mode
@@ -319,24 +416,28 @@ function calculateRowTotals(row) {
     console.log("🧮 Row recalculated:", { qty, cost, mult, margin, extCost, total });
 }
 
-  function hideSuggestionList() {
-    const list = document.getElementById("sku-suggestion-list");
-    if (list) list.style.display = "none";
-  }
+function hideSuggestionList() {
+    document.querySelectorAll("#autocomplete-list").forEach(el => el.remove());
+}
+
+
 function fillRowFromSku(row, item) {
     if (!row || !item) {
-        console.warn("❗ fillRowFromSku called without row or item:", {row, item});
+        console.warn("❗ fillRowFromSku called without row or item:", { row, item });
         return;
     }
 
     const map = {
-        ".desc-input": item.Description,
-        ".uom-input": item.UOM,
-        ".mat-input": item["Material Type"],
-        ".color-input": item["Color Group"],
-        ".vendor-input": item.Vendor,
-        ".cost-input": item.Cost,
-        ".mult-input": item.UOMMult,
+        ".desc-input": item.Description || "",
+        ".uom-input": item.UOM || "",
+
+        // Support both field styles
+        ".mat-input": item.MaterialType || item["Material Type"] || "",
+        ".color-input": item.ColorGroup || item["Color Group"] || "",
+
+        ".vendor-input": item.Vendor || "",
+        ".cost-input": item.Cost || 0,
+        ".mult-input": item.UOMMult || 1
     };
 
     Object.entries(map).forEach(([selector, value]) => {
@@ -346,11 +447,13 @@ function fillRowFromSku(row, item) {
             console.warn("Row HTML:", row.outerHTML);
             return;
         }
-        input.value = value ?? "";
+        input.value = value;
     });
 
+    // Recalculate totals now that fields are filled
     calculateRowTotals(row);
 }
+
 
 
 function fillVendorDetails(row, item) {
@@ -375,9 +478,9 @@ async function saveTakeoff() {
         UOM: row.querySelector(".uom-input")?.value || "",
         "Material Type": row.querySelector(".mat-input")?.value || "",
         "Color Group": row.querySelector(".color-input")?.value || "",
+        Vendor: row.querySelector(".vendor-input")?.value || "",
 
         Qty: Number(row.querySelector(".qty-input")?.value || 0),
-        Vendor: row.querySelector(".vendor-input")?.value || "",
         "Unit Cost": Number(row.querySelector(".cost-input")?.value || 0),
         "UOM Mult": Number(row.querySelector(".mult-input")?.value || 1),
 
@@ -430,22 +533,60 @@ function showToast(msg) {
         toast.style.opacity = "0";
     }, 2000);
 }
+function enableVendorClickDropdown(inputEl) {
+    inputEl.addEventListener("focus", () => {
+        console.log("🔥 Vendor field focused", inputEl);
+        showVendorDropdown(inputEl);
+    });
 
-function showSuggestions(results, inputEl, mode = "sku") {
-    // Remove any existing dropdown
+    inputEl.addEventListener("click", () => {
+        console.log("🔥 Vendor field clicked", inputEl);
+        showVendorDropdown(inputEl);
+    });
+    console.log("✔ Vendor click handler attached:", inputEl);
+
+}
+
+function showVendorDropdown(inputEl) {
+    console.log("📌 showVendorDropdown() called");
+
     hideSuggestionList();
 
-    // Debug
-    console.group("📌 showSuggestions()");
-    console.log("Mode:", mode);
-    console.log("Input value:", inputEl.value);
-    console.log("Results count:", results?.length);
-    console.log("Results:", results);
-    console.groupEnd();
+    const row = inputEl.closest("tr");
+    const skuVal = row.querySelector(".sku-input")?.value?.trim() || "";
+
+    console.log("📌 Current SKU Value:", skuVal);
+
+    if (!skuVal) {
+        console.log("❌ No SKU found — cannot show vendor list.");
+        return;
+    }
+
+    let matches = window.skuData.filter(i =>
+        i.SKU.toLowerCase() === skuVal.toLowerCase()
+    );
+
+    console.log("📌 Vendor matches found:", matches.length, matches);
+
+
+    const seen = new Set();
+    matches = matches.filter(i => {
+        if (seen.has(i.Vendor)) return false;
+        seen.add(i.Vendor);
+        return true;
+    });
+
+    showSuggestions(matches, inputEl, "vendor");
+}
+
+
+function showSuggestions(results, inputEl, mode = "sku") {
+    // Remove existing dropdown
+    hideSuggestionList();
 
     if (!results || results.length === 0) return;
 
-    // Create dropdown container
+    // Create dropdown element
     const list = document.createElement("ul");
     list.id = "autocomplete-list";
     list.style.position = "absolute";
@@ -464,45 +605,40 @@ function showSuggestions(results, inputEl, mode = "sku") {
         const li = document.createElement("li");
         li.className = "autocomplete-item hover:bg-gray-200 px-2 py-1 cursor-pointer";
 
+        // Display text in dropdown
         if (mode === "sku") {
             li.textContent = `${item.SKU} — ${item.Description}`;
         } else if (mode === "vendor") {
-            li.textContent = item.Vendor;
+            li.textContent = item.Vendor;  // Only show vendor name
         }
 
+        // CLICK HANDLER
         li.addEventListener("click", () => {
-    console.log("🖱 Selected suggestion:", li.textContent);
+            const row = inputEl.closest("tr"); // ✅ row safely defined here
 
-    const row = inputEl.closest("tr");
+            console.log("🖱 Selected suggestion:", li.textContent);
 
-    if (mode === "sku") {
-        inputEl.value = item.SKU;
-console.log("FILL DEBUG:", {
-    rowHTML: row.outerHTML,
-    skuItem: item
-});
+            if (mode === "sku") {
+                // Fill SKU
+                inputEl.value = item.SKU;
+                fillRowFromSku(row, item);
 
-fillRowFromSku(row, item);
-    } else if (mode === "vendor") {
-        inputEl.value = item.Vendor;
-        fillVendorDetails(row, item);
-    }
+            } else if (mode === "vendor") {
+                // Fill Vendor
+                inputEl.value = item.Vendor;
+                fillVendorDetails(row, item);
+            }
 
-    // 🔥 Recalculate because fields changed
-    calculateRowTotals(row);
+            // Recalculate totals
+            calculateRowTotals(row);
 
-    // 🔥 Hide dropdown AFTER selecting
-    hideSuggestionList();
-
-    // 🔥 Allow new suggestions when typing again
-    inputEl.dispatchEvent(new Event("input"));
-});
-
+            // Hide dropdown
+            hideSuggestionList();
+        });
 
         list.appendChild(li);
     });
 
-    // Add to page
     document.body.appendChild(list);
 }
 
@@ -624,10 +760,10 @@ row.innerHTML = `
 
 <td><input class="mat-input w-full" value="${item["Material Type"] || ""}"></td>
 <td><input class="color-input w-full" value="${item["Color Group"] || ""}"></td>
+<td><input class="vendor-input w-full" value="${item.Vendor || ""}"></td>
 
 <td><input class="qty-input w-full" type="number" value="${item.Qty || 1}"></td>
 
-<td><input class="vendor-input w-full" value="${item.Vendor || ""}"></td>
 
 <td><input class="cost-input w-full" type="number" value="${item["Unit Cost"] || 0}"></td>
 <td><input class="mult-input w-full" type="number" value="${item["UOM Mult"] || 1}"></td>
@@ -648,8 +784,9 @@ console.log(row.outerHTML);
 console.log("DEBUG ROW:", row.outerHTML);
 
       lineItemBody.appendChild(row);
+      enableVendorClickDropdown(row.querySelector(".vendor-input"));
+
 attachAutocomplete(row.querySelector(".sku-input"), "sku");
-attachAutocomplete(row.querySelector(".vendor-input"), "vendor");
       attachCalculators(row);
 
       row.querySelector(".remove-line").addEventListener("click", () => row.remove());
