@@ -13,15 +13,18 @@ const AIRTABLE_API_KEY2 =
 const BASE_ID2 = "appnZNCcUAJCjGp7L";
 const TAKEOFFS_TABLE_ID2 = "tblZpnyqHJeC1IaZq";
 const SKU_TABLE_ID2 = "tblZpnyqHJeC1IaZq"; // JSON table
+const estimator = document.getElementById("estimator-select")?.value.trim() || "";
 
 window.skuData = [];
 let builderLookup = {};  
-
+document.getElementById("manual-save-btn").addEventListener("click", saveTakeoff);
+let estimatorId = "";
 // ==========================================================
 // MAIN APP INITIALIZATION
 // ==========================================================
 document.addEventListener("DOMContentLoaded", async () => {
   console.log("🎬 Takeoff Creation Page Ready");
+    loadEstimatorsDropdown();
 
   // DOM elements
 const nameInput = document.getElementById("nameInput");
@@ -36,6 +39,7 @@ const communitySelect = document.getElementById("community-select");
   const lineItemsSection = document.getElementById("line-items-section");
   const lineItemBody = document.getElementById("line-item-body");
   const addLineItemBtn = document.getElementById("add-line-item");
+document.addEventListener("DOMContentLoaded", loadEstimators);
 
   // MODE FLAGS
   let editingId = localStorage.getItem("editingTakeoffId");
@@ -66,12 +70,89 @@ elevationSelect.addEventListener("change", () => {
   // ==========================================================
   // 2. IF EDIT MODE → LOAD TAKEOFF AFTER DROPDOWNS POPULATE
   // ==========================================================
-  if (editingId) {
+ if (editingId) {
     console.log("📝 Edit Mode:", editingId);
     isLoadingEditMode = true;
 
     setTimeout(() => loadExistingTakeoff(editingId), 900);
-  }
+}
+async function getEstimatorRecordIdByName(name) {
+    if (!name) return null;
+
+    const url = `https://api.airtable.com/v0/${BASE_ID2}/tbl1ymzV1CYldIGJU?filterByFormula=${encodeURIComponent(
+        `{Full Name} = "${name}"`
+    )}`;
+
+    const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${AIRTABLE_API_KEY2}` }
+    });
+
+    const json = await res.json();
+
+    if (!json.records.length) {
+        console.warn("⚠️ No estimator found for:", name);
+        return null;
+    }
+
+    return json.records[0].id; // EXACT match
+}
+
+  function safeParseImportedJSON(raw) {
+    if (!raw) return [];
+
+    let cleaned = raw;
+
+    // If Airtable returns an array like ["..."]
+    if (Array.isArray(cleaned)) {
+        cleaned = cleaned[0];
+    }
+
+    // Remove accidental double-encoded arrays: "[\"{...}\"]"
+    while (typeof cleaned === "string" && cleaned.trim().startsWith("[\"")) {
+        try {
+            cleaned = JSON.parse(cleaned)[0];
+        } catch {
+            break;
+        }
+    }
+
+    // Remove leading/trailing quotes if JSON accidentally double-stringed
+    if (typeof cleaned === "string" && cleaned.startsWith("\"") && cleaned.endsWith("\"")) {
+        try {
+            cleaned = JSON.parse(cleaned);
+        } catch {}
+    }
+
+    // Final actual parse of array of objects
+    try {
+        const parsed = JSON.parse(cleaned);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+        console.warn("❌ Failed to parse Imported JSON. Raw value was:", raw);
+        return []; // fail-safe fallback
+    }
+}
+function normalizeRow(row) {
+    const normalized = { ...row };
+
+    // Normalize Qty (uppercase)
+    if (row.QTY === undefined && row.Qty !== undefined) {
+        normalized.QTY = Number(row.Qty) || 0;
+        delete normalized.Qty;
+    }
+
+    if (normalized.QTY === undefined) {
+        normalized.QTY = 0;
+    }
+
+    // Normalize Vendor
+    if (normalized.Vendor === undefined) {
+        normalized.Vendor = "";
+    }
+
+    return normalized;
+}
+
 async function fetchAllTakeoffs() {
     const url = `https://api.airtable.com/v0/${BASE_ID2}/${TAKEOFFS_TABLE_ID2}?pageSize=100`;
 
@@ -92,8 +173,7 @@ async function populateBuilders() {
             t.Builder.forEach(b => {
                 // Skip if already added
                 if (!builderLookup[b]) {
-                    // b is the record ID, t["Builder Name"] is unknown so we use Plan records
-                    builderLookup[b] = t["Builder Name"] || b;
+builderLookup[b] = b;  // b is already the Builder record ID
                 }
             });
         }
@@ -102,9 +182,12 @@ async function populateBuilders() {
     // Build list of actual display names
     const builderNames = [...new Set(Object.values(builderLookup))].sort();
 
-    builderSelect.innerHTML =
-        `<option value="">Select Builder</option>` +
-        builderNames.map(b => `<option value="${b}">${b}</option>`).join("");
+  builderSelect.innerHTML =
+    `<option value="">Select Builder</option>` +
+    Object.keys(builderLookup).map(id => 
+        `<option value="${id}">${builderLookup[id]}</option>`
+    ).join("");
+
 }
 
 async function populatePlans(builder) {
@@ -113,7 +196,7 @@ async function populatePlans(builder) {
     const plans = [...new Set(
         all
             .filter(t => (t.Builder || []).includes(builder))
-            .map(t => t["Plan name"])
+            .map(t => t["Takeoff Name"])
     )].sort();
 
     planSelect.innerHTML =
@@ -127,7 +210,7 @@ async function populateElevations(builder, plan) {
 
     const elevs = [...new Set(
         all
-            .filter(t => (t.Builder || []).includes(builder) && t["Plan name"] === plan)
+            .filter(t => (t.Builder || []).includes(builder) && t["Takeoff Name"] === plan)
             .map(t => t["Elevation"])
     )].sort();
 
@@ -137,6 +220,31 @@ async function populateElevations(builder, plan) {
         maybeShowLineItems();   // 🔥 FORCE re-check
 
 }
+async function populateCommunityDropdownByBuilderId(builderRecordId) {
+    console.log("🏘 Loading communities for builder:", builderRecordId);
+
+    const dropdown = document.getElementById("community-select");
+    dropdown.innerHTML = `<option value="">Loading...</option>`;
+
+    const list = await fetchCommunitiesByBuilderId(builderRecordId);
+
+    dropdown.innerHTML = "";  
+
+    if (list.length === 0) {
+        dropdown.innerHTML = `<option value="">No communities found</option>`;
+        return;
+    }
+
+    list.forEach(c => {
+        const opt = document.createElement("option");
+        opt.value = c.name;
+        opt.textContent = c.name;
+        dropdown.appendChild(opt);
+    });
+
+    console.log(`🏘 Loaded ${list.length} communities.`);
+}
+
 async function populateCommunities(builder, plan, elevation) {
     const all = await fetchAllTakeoffs();
 
@@ -144,7 +252,7 @@ async function populateCommunities(builder, plan, elevation) {
         all
             .filter(t =>
                 (t.Builder || []).includes(builder) &&
-                t["Plan name"] === plan &&
+                t["Takeoff Name"] === plan &&
                 t["Elevation"] === elevation
             )
             .map(t => t["Community Name"])
@@ -157,40 +265,45 @@ async function populateCommunities(builder, plan, elevation) {
 
 }
 
-  // ==========================================================
-  // LOGIC TO SHOW TABLE AFTER HEADERS FILLED (CREATE MODE)
-  // ==========================================================
- function allFieldsFilled() {
-    const name = document.getElementById("nameInput")?.value.trim();
-    const type = document.getElementById("takeoff-type")?.value;
-    const builder = document.getElementById("builder-select")?.value;
-    const plan = document.getElementById("plan-select")?.value;
-    const elevation = document.getElementById("elevation-select")?.value;
-    const community = document.getElementById("community-select")?.value;
+async function fetchCommunitiesByBuilderId(builderRecordId) {
+    if (!builderRecordId) {
+        console.warn("⚠️ No builderRecordId provided to fetchCommunitiesByBuilderId()");
+        return [];
+    }
 
-    console.log("CHECK FIELDS:", { name, type, builder, plan, elevation, community });
+    console.log("🌐 Fetching communities for builder ID:", builderRecordId);
 
-    return (
-        name &&
-        type &&
-        builder &&
-        plan &&
-        elevation &&
-        community
-    );
+    const url = `https://api.airtable.com/v0/${BASE_ID}/${COMMUNITY_TABLE_ID}?filterByFormula=${encodeURIComponent(
+        `FIND("${builderRecordId}", ARRAYJOIN({Builder}))`
+    )}`;
+
+    try {
+        const res = await fetch(url, {
+            headers: { Authorization: `Bearer ${AIRTABLE_API_KEY2}` }
+        });
+
+        const data = await res.json();
+
+        if (!data.records) return [];
+
+        return data.records.map(r => ({
+            id: r.id,
+            name: r.fields["Community Name"] || ""
+        }));
+    } catch (err) {
+        console.error("❌ Error fetching communities:", err);
+        return [];
+    }
 }
-
 
 function maybeShowLineItems() {
   revealLineItemsSection(); // always show table, no conditions
 }
 
-
   // ==========================================================
   // REVEAL TABLE SECTION
   // ==========================================================
 function revealLineItemsSection() {
-    console.log("🔧 revealLineItemsSection() CALLED");
 
     document.getElementById("placeholder-box").style.display = "none";
     const section = document.getElementById("line-items-section");
@@ -199,13 +312,10 @@ function revealLineItemsSection() {
     section.style.opacity = 1;
 }
 
-
-
   // ==========================================================
   // LOAD SKU CSV DATA
   // ==========================================================
  async function fetchSkuData() {
-  console.log("📡 Fetching SKU CSV…");
 
   const response = await fetch(TAKEOFF_SHEET_URL);
   const csvText = await response.text();
@@ -234,57 +344,7 @@ function revealLineItemsSection() {
 
   window.skuData = parsed;
 
-  console.log("📦 Parsed first 5 rows:", window.skuData.slice(0, 5));
 }
-
-
-  // ==========================================================
-  // ADD LINE ITEM FROM SKU CSV
-  // ==========================================================
-  function addLineItemFromSku(skuObj) {
-    const row = document.createElement("tr");
-row.innerHTML = `
-<td><input class="sku-input w-full"></td>
-<td><input class="desc-input w-full"></td>
-<td><input class="uom-input w-full"></td>
-
-<td><input class="mat-input w-full"></td>
-<td><input class="color-input w-full"></td>
-<td><input class="vendor-input w-full"></td>
-
-<td><input class="qty-input w-full" type="number" value="1"></td>
-
-
-<td><input class="cost-input w-full" type="number"></td>
-<td><input class="mult-input w-full" type="number" value="1"></td>
-
-<td><input class="extcost-input w-full" type="number" readonly></td>
-
-<td><input class="percent-input w-full" type="number" value="0"></td>
-
-<td><input class="total-input w-full" type="number" readonly></td>
-
-<td class="text-center">
-    <button class="remove-line text-red-500">🗑️</button>
-</td>
-`;
-
-console.log(row.outerHTML);
-console.log("DEBUG ROW:", row.outerHTML);
-
-
-    lineItemBody.appendChild(row);
-    enableVendorClickDropdown(row.querySelector(".vendor-input"));
-
-attachAutocomplete(row.querySelector(".sku-input"), "sku");
-    attachCalculators(row);
-
-    row.querySelector(".remove-line").addEventListener("click", () => row.remove());
-    enableVendorClickDropdown(row.querySelector(".vendor-input"));
-
-        updateGrandTotal();   // <-- add this!
-
-  }
 
   // ==========================================================
   // ADD BLANK LINE
@@ -298,19 +358,12 @@ function addLineItem() {
 <td><input class="mat-input w-full" value=""></td>
 <td><input class="color-input w-full" value=""></td>
 <td><input class="vendor-input w-full" value=""></td>
-
 <td><input class="qty-input w-full" type="number" value="1"></td>
-
-
 <td><input class="cost-input w-full" type="number" value=""></td>
 <td><input class="mult-input w-full" type="number" value="1"></td>
-
 <td><input class="extcost-input w-full" type="number" value="" readonly></td>
-
 <td><input class="percent-input w-full" type="number" value="0"></td>
-
 <td><input class="total-input w-full" type="number" value="" readonly></td>
-
 <td class="text-center"><button class="remove-line text-red-500">🗑️</button></td>
     `;
 
@@ -323,7 +376,7 @@ enableVendorClickDropdown(row.querySelector(".vendor-input"));
     row.querySelector(".remove-line").addEventListener("click", () => row.remove());
     enableVendorClickDropdown(row.querySelector(".vendor-input"));
 
-        updateGrandTotal();   // <-- add this!
+        updateGrandTotal();   
 
 }
 
@@ -354,9 +407,7 @@ function searchSkuSuggestions(query, inputEl, mode) {
   let matches = [];
   const normalize = (s) => (s || "").trim().toLowerCase();
 
-  // ==========================
-  // Vendor Autocomplete Mode
-  // ==========================
+
 // ==========================
 // Vendor Autocomplete Mode
 // ==========================
@@ -385,7 +436,6 @@ if (mode === "vendor") {
     return showSuggestions(matches.slice(0, 10), inputEl, mode);
 }
 
-
   // ==========================
   // SKU Autocomplete Mode
   // ==========================
@@ -401,20 +451,25 @@ if (mode === "vendor") {
 function fillVendorDetails(row, item) {
     if (!row || !item) return;
 
-    console.log("📦 fillVendorDetails:", item);
+    // Preserve QTY before vendor overwrite triggers UI events
+    const qtyInput = row.querySelector(".qty-input");
+    const existingQty = qtyInput.value;
 
-    // Update pricing for that vendor
-    row.querySelector(".cost-input").value = item.Cost || 0;
+    row.querySelector(".vendor-input").value = item.Vendor || "";
+    row.querySelector(".cost-input").value   = item.Cost || 0;
+    row.querySelector(".mult-input").value   = item.UOMMult || 1;
 
-    // Same SKU, so UOM should match
-    row.querySelector(".uom-input").value = item.UOM || "";
-    row.querySelector(".desc-input").value = item.Description || "";
+    // Restore user's QTY
+    qtyInput.value = existingQty;
+
+    calculateRowTotals(row);
 }
 
 function calculateRowTotals(row) {
     if (!row) return;
 
-    const qty = parseFloat(row.querySelector(".qty-input")?.value || 0);
+const rawQty = row.querySelector(".qty-input").value;
+const qty = rawQty === "" ? "" : Number(rawQty);
     const cost = parseFloat(row.querySelector(".cost-input")?.value || 0);
     const mult = parseFloat(row.querySelector(".mult-input")?.value || 1);
     const margin = parseFloat(row.querySelector(".percent-input")?.value || 0);
@@ -428,48 +483,23 @@ function calculateRowTotals(row) {
     if (extCostInput) extCostInput.value = extCost.toFixed(2);
     if (totalInput) totalInput.value = total.toFixed(2);
 
-    console.log("🧮 Row recalculated:", { qty, cost, mult, margin, extCost, total });
 }
 
 function hideSuggestionList() {
     document.querySelectorAll("#autocomplete-list").forEach(el => el.remove());
 }
 
-
 function fillRowFromSku(row, item) {
-    if (!row || !item) {
-        console.warn("❗ fillRowFromSku called without row or item:", { row, item });
-        return;
-    }
+    row.querySelector(".desc-input").value = item.Description || "";
+    row.querySelector(".uom-input").value = item.UOM || "";
+    row.querySelector(".mat-input").value = item.MaterialType || "";
+    row.querySelector(".color-input").value = item.ColorGroup || "";
+    row.querySelector(".vendor-input").value = item.Vendor || "";
+    row.querySelector(".cost-input").value = item.Cost || 0;
+    row.querySelector(".mult-input").value = item.UOMMult || 1;
 
-    const map = {
-        ".desc-input": item.Description || "",
-        ".uom-input": item.UOM || "",
-
-        // Support both field styles
-        ".mat-input": item.MaterialType || item["Material Type"] || "",
-        ".color-input": item.ColorGroup || item["Color Group"] || "",
-
-        ".vendor-input": item.Vendor || "",
-        ".cost-input": item.Cost || 0,
-        ".mult-input": item.UOMMult || 1
-    };
-
-    Object.entries(map).forEach(([selector, value]) => {
-        const input = row.querySelector(selector);
-        if (!input) {
-            console.warn(`⚠️ Missing input for selector: ${selector}`);
-            console.warn("Row HTML:", row.outerHTML);
-            return;
-        }
-        input.value = value;
-    });
-
-    // Recalculate totals now that fields are filled
     calculateRowTotals(row);
 }
-
-
 
 function fillVendorDetails(row, item) {
     if (!row || !item) return;
@@ -481,108 +511,32 @@ function fillVendorDetails(row, item) {
     calculateRowTotals(row);
 }
 
-
-async function saveTakeoff() {
-    console.log("💾 Saving takeoff...");
-
-    const rows = [...document.querySelectorAll("#line-item-body tr")];
-
-    const items = rows.map(row => ({
-        SKU: row.querySelector(".sku-input")?.value || "",
-        Description: row.querySelector(".desc-input")?.value || "",
-        UOM: row.querySelector(".uom-input")?.value || "",
-        "Material Type": row.querySelector(".mat-input")?.value || "",
-        "Color Group": row.querySelector(".color-input")?.value || "",
-        Vendor: row.querySelector(".vendor-input")?.value || "",
-
-        Qty: Number(row.querySelector(".qty-input")?.value || 0),
-        "Unit Cost": Number(row.querySelector(".cost-input")?.value || 0),
-        "UOM Mult": Number(row.querySelector(".mult-input")?.value || 1),
-
-        "Ext. Cost": Number(row.querySelector(".extcost-input")?.value || 0),
-        "%": Number(row.querySelector(".percent-input")?.value || 0),
-        Total: Number(row.querySelector(".total-input")?.value || 0)
-    }));
-
-    console.log("📦 JSON being saved:", items);
-
-    const jsonString = JSON.stringify(items);
-
-    // --- YOU MUST ALREADY KNOW THE RECORD ID ---
-    const recordId = window.currentTakeoffRecordId;
-    if (!recordId) {
-        alert("❌ No record ID found to save to Airtable!");
-        return;
-    }
-
-    const url = `https://api.airtable.com/v0/${BASE_ID2}/${SKU_TABLE_ID2}/${recordId}`;
-
-    const res = await fetch(url, {
-        method: "PATCH",
-        headers: {
-            "Authorization": `Bearer ${AIRTABLE_API_KEY2}`,
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            fields: {
-                "Imported JSON": jsonString
-            }
-        })
-    });
-
-    if (!res.ok) {
-        console.error("❌ Airtable Save Error:", await res.text());
-        alert("Failed to save!");
-        return;
-    }
-
-    console.log("✅ Saved successfully!");
-    showToast("Takeoff saved successfully!");
-}
-function showToast(msg) {
-    const toast = document.getElementById("toast");
-    toast.textContent = msg;
-    toast.style.opacity = "1";
-
-    setTimeout(() => {
-        toast.style.opacity = "0";
-    }, 2000);
-}
 function enableVendorClickDropdown(inputEl) {
     inputEl.addEventListener("focus", () => {
-        console.log("🔥 Vendor field focused", inputEl);
         showVendorDropdown(inputEl);
     });
 
     inputEl.addEventListener("click", () => {
-        console.log("🔥 Vendor field clicked", inputEl);
         showVendorDropdown(inputEl);
     });
-    console.log("✔ Vendor click handler attached:", inputEl);
 
 }
 
 function showVendorDropdown(inputEl) {
-    console.log("📌 showVendorDropdown() called");
 
     hideSuggestionList();
 
     const row = inputEl.closest("tr");
     const skuVal = row.querySelector(".sku-input")?.value?.trim() || "";
 
-    console.log("📌 Current SKU Value:", skuVal);
 
     if (!skuVal) {
-        console.log("❌ No SKU found — cannot show vendor list.");
         return;
     }
 
     let matches = window.skuData.filter(i =>
         i.SKU.toLowerCase() === skuVal.toLowerCase()
     );
-
-    console.log("📌 Vendor matches found:", matches.length, matches);
-
 
     const seen = new Set();
     matches = matches.filter(i => {
@@ -593,7 +547,6 @@ function showVendorDropdown(inputEl) {
 
     showSuggestions(matches, inputEl, "vendor");
 }
-
 
 function showSuggestions(results, inputEl, mode = "sku") {
     // Remove existing dropdown
@@ -631,8 +584,6 @@ function showSuggestions(results, inputEl, mode = "sku") {
         li.addEventListener("click", () => {
             const row = inputEl.closest("tr"); // ✅ row safely defined here
 
-            console.log("🖱 Selected suggestion:", li.textContent);
-
             if (mode === "sku") {
                 // Fill SKU
                 inputEl.value = item.SKU;
@@ -657,10 +608,7 @@ function showSuggestions(results, inputEl, mode = "sku") {
     document.body.appendChild(list);
 }
 
-
-
-
-  // ==========================================================
+// ==========================================================
   // CALCULATOR
   // ==========================================================
 function attachCalculators(row) {
@@ -677,7 +625,7 @@ function attachCalculators(row) {
     }
 
     function recalc() {
-        const q = parseFloat(qty.value) || 0;
+const q = qty.value === "" ? 0 : parseFloat(qty.value);
         const c = parseFloat(cost.value) || 0;
         const m = parseFloat(mult.value) || 1;
         const p = parseFloat(margin.value) || 0;
@@ -687,9 +635,6 @@ function attachCalculators(row) {
 
         ext.value = extCost.toFixed(2);
         total.value = totalCost.toFixed(2);
-
-        console.log("🧮 Row recalculated:", { q, c, m, p, extCost, totalCost });
-
         updateGrandTotal();  // <-- 🔥 IMPORTANT
     }
 
@@ -700,7 +645,6 @@ function attachCalculators(row) {
 
     recalc();
 }
-
 
 function updateGrandTotal() {
     const totalInputs = document.querySelectorAll(".total-input");
@@ -713,185 +657,129 @@ function updateGrandTotal() {
 
     document.getElementById("grand-total").value = sum.toFixed(2);
 
-    console.log("💰 Updated Grand Total:", sum);
 }
-
 
   // ==========================================================
   // EDIT MODE → LOAD TAKEOFF
   // ==========================================================
-  async function loadExistingTakeoff(recId) {
-    console.log("📥 Loading existing takeoff…");
+async function loadExistingTakeoff(recordId) {
+    console.log("📥 Loading takeoff:", recordId);
 
-    const url = `https://api.airtable.com/v0/${BASE_ID2}/${TAKEOFFS_TABLE_ID2}/${recId}`;
-
-    const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${AIRTABLE_API_KEY2}` },
-    });
+    const res = await fetch(
+        `https://api.airtable.com/v0/${BASE_ID2}/${TAKEOFFS_TABLE_ID2}/${recordId}`,
+        { headers: { Authorization: `Bearer ${AIRTABLE_API_KEY2}` } }
+    );
 
     const data = await res.json();
     const f = data.fields;
 
-    // HEADER POPULATE
-    nameInput.value = f["Plan name"] || f["Takeoff Name"] || "";
-    typeSelect.value = f["Type"] || "";
-    planSelect.value = f["Plan name"] || "";
-    elevationSelect.value = f["Elevation"] || "";
-    communitySelect.value = f["Community Name"] || "";
+    // ------------- Fill Header Fields -------------
+    document.getElementById("nameInput").value = f["Takeoff Name"] || "";
+    document.getElementById("takeoff-type").value = f["Type"] || "";
+    document.getElementById("builder-select").value = f["Builder"] || "";
+    document.getElementById("plan-select").value = f["Plan"] || "";
+    document.getElementById("elevation-select").value = f["Elevation"] || "";
+    document.getElementById("community-select").value = f["Community"] || "";
 
-    // ⭐ FIX: Use friendly builder name
-// FIRST: make sure builder dropdown is populated
-await populateBuilderDropdown();
-
-// THEN: set the builder value
-const builderRecordId = f["Builder"]?.[0];
-
-if (builderRecordId) {
-    builderSelect.value = builderRecordId;
-    console.log("Builder selected:", builderRecordId);
-} else {
-    console.warn("⚠ No builder linked");
-}
-
-
-    isLoadingEditMode = false; // allow table reveal
     revealLineItemsSection();
 
-    // LOAD JSON ROW
-   console.log("📦 Loading JSON directly from takeoff row…");
+    // ------------- Load JSON Into Table -------------
+    const rawJson = f["Imported JSON"] || "[]";
+    let parsed = [];
 
-const jsonRaw =
-  f["Imported JSON"] ||
-  (Array.isArray(f["Imported JSON (from Takeoffs)"]) ? f["Imported JSON (from Takeoffs)"][0] : "") ||
-  "[]";
+    try {
+        parsed = JSON.parse(rawJson);
+    } catch (err) {
+        console.error("❌ Invalid JSON:", err, rawJson);
+        parsed = [];
+    }
 
-let items = [];
-
-try {
-  items = JSON.parse(jsonRaw);
-  console.log("📌 Parsed JSON items:", items);
-} catch (err) {
-  console.error("❌ Error parsing JSON:", err, jsonRaw);
+    loadJsonIntoTable(parsed);
 }
 
-lineItemBody.innerHTML = "";
+function loadJsonIntoTable(rows) {
+    const tbody = document.getElementById("line-item-body");
+    tbody.innerHTML = ""; // clear old rows
 
-items.forEach(item => {
-  const row = document.createElement("tr");
-  row.innerHTML = `
-<td><input class="sku-input w-full" value="${item.SKU || ""}"></td>
-<td><input class="desc-input w-full" value="${item.Description || ""}"></td>
-<td><input class="uom-input w-full" value="${item.UOM || ""}"></td>
+    rows.forEach(item => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td><input class="sku-input w-full" value="${item.SKU || ""}"></td>
+            <td><input class="desc-input w-full" value="${item.Description || ""}"></td>
+            <td><input class="uom-input w-full" value="${item.UOM || ""}"></td>
+            <td><input class="mat-input w-full" value="${item.MaterialType || ""}"></td>
+            <td><input class="color-input w-full" value="${item.ColorGroup || ""}"></td>
+            <td><input class="vendor-input w-full" value="${item.Vendor || ""}"></td>
+            <td><input class="qty-input w-full" type="number" value="${item.QTY || 0}"></td>
+            <td><input class="cost-input w-full" type="number" value="${item.Cost || 0}"></td>
+            <td><input class="mult-input w-full" type="number" value="${item.UOMMult || 1}"></td>
+            <td><input class="extcost-input w-full" type="number" readonly></td>
+            <td><input class="percent-input w-full" type="number" value="${item.Margin || 0}"></td>
+            <td><input class="total-input w-full" type="number" readonly></td>
+            <td><button class="remove-line text-red-500">🗑️</button></td>
+        `;
 
-<td><input class="mat-input w-full" value="${item["Material Type"] || ""}"></td>
-<td><input class="color-input w-full" value="${item["Color Group"] || ""}"></td>
-<td><input class="vendor-input w-full" value="${item.Vendor || ""}"></td>
+        tr.querySelector(".remove-line").addEventListener("click", () => tr.remove());
 
-<td><input class="qty-input w-full" type="number" value="${item.Qty || 1}"></td>
-<td><input class="cost-input w-full" type="number" value="${item["Unit Cost"] || 0}"></td>
-<td><input class="mult-input w-full" type="number" value="${item["UOM Mult"] || 1}"></td>
+        attachAutocomplete(tr.querySelector(".sku-input"), "sku");
+        enableVendorClickDropdown(tr.querySelector(".vendor-input"));
+        attachCalculators(tr);
 
-<td><input class="extcost-input w-full" type="number" value="${item["Ext. Cost"] || 0}" readonly></td>
-<td><input class="percent-input w-full" type="number" value="${item["%"] || 0}"></td>
-<td><input class="total-input w-full" type="number" value="${item.Total || 0}" readonly></td>
+        tbody.appendChild(tr);
 
-<td class="text-center">
-    <button class="remove-line text-red-500">🗑️</button>
-</td>
-`;
+        calculateRowTotals(tr);
+    });
 
-  lineItemBody.appendChild(row);
+    updateGrandTotal();
+}
 
-  enableVendorClickDropdown(row.querySelector(".vendor-input"));
-  attachAutocomplete(row.querySelector(".sku-input"), "sku");
-  attachCalculators(row);
 });
 
-updateGrandTotal();
+function getItemsForSave() {
+    const rows = [...document.querySelectorAll("#line-item-body tr")];
 
-  }
+    const items = rows.map(row => normalizeRow({
+        SKU: row.querySelector(".sku-input").value,
+        Description: row.querySelector(".desc-input").value,
+        UOM: row.querySelector(".uom-input").value,
+        "Material Type": row.querySelector(".mat-input").value,
+        "Color Group": row.querySelector(".color-input").value,
+        Vendor: row.querySelector(".vendor-input").value,
+        QTY: Number(row.querySelector(".qty-input").value || 0),
+        "Unit Cost": Number(row.querySelector(".cost-input").value || 0),
+        "UOM Mult": Number(row.querySelector(".mult-input").value || 1),
+        "Ext. Cost": Number(row.querySelector(".extcost-input").value || 0),
+        "%": Number(row.querySelector(".percent-input").value || 0),
+        Total: Number(row.querySelector(".total-input").value || 0),
+    }));
 
-  // ==========================================================
-  // LOAD JSON CONTENT INTO TABLE
-  // ==========================================================
-  async function loadSkuJsonRecord(jsonRecordId) {
-    console.log("📦 Loading JSON SKU record:", jsonRecordId);
+    return items;
+}
 
-    const url = `https://api.airtable.com/v0/${BASE_ID2}/${SKU_TABLE_ID2}/${jsonRecordId}`;
+async function getNextRevision(takeoffName) {
+    const url = `https://api.airtable.com/v0/${BASE_ID2}/${TAKEOFFS_TABLE_ID2}?filterByFormula=${encodeURIComponent(
+        `{Takeoff Name} = "${takeoffName}"`
+    )}`;
 
     const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${AIRTABLE_API_KEY2}` },
+        headers: { Authorization: `Bearer ${AIRTABLE_API_KEY2}` }
     });
 
-    const data = await res.json();
-    const json = JSON.parse(data.fields["Imported JSON"] || "[]");
+    const json = await res.json();
 
-    lineItemBody.innerHTML = "";
+    if (!json.records.length) return 1;
 
-   json.forEach((item) => {
-  const row = document.createElement("tr");
-row.innerHTML = `
-<td><input class="sku-input w-full" value="${item.SKU || ""}"></td>
-<td><input class="desc-input w-full" value="${item.Description || ""}"></td>
-<td><input class="uom-input w-full" value="${item.UOM || ""}"></td>
+    let maxRev = 0;
 
-<td><input class="mat-input w-full" value="${item["Material Type"] || ""}"></td>
-<td><input class="color-input w-full" value="${item["Color Group"] || ""}"></td>
-<td><input class="vendor-input w-full" value="${item.Vendor || ""}"></td>
-
-<td><input class="qty-input w-full" type="number" value="${item.Qty || 1}"></td>
-
-
-<td><input class="cost-input w-full" type="number" value="${item["Unit Cost"] || 0}"></td>
-<td><input class="mult-input w-full" type="number" value="${item["UOM Mult"] || 1}"></td>
-
-<td><input class="extcost-input w-full" type="number" value="${item["Ext. Cost"] || 0}" readonly></td>
-
-<td><input class="percent-input w-full" type="number" value="${item["%"] || 0}"></td>
-
-<td><input class="total-input w-full" type="number" value="${item.Total || 0}" readonly></td>
-
-<td class="text-center">
-    <button class="remove-line text-red-500">🗑️</button>
-</td>
-`;
-
-
-console.log(row.outerHTML);
-console.log("DEBUG ROW:", row.outerHTML);
-
-      lineItemBody.appendChild(row);
-      enableVendorClickDropdown(row.querySelector(".vendor-input"));
-
-attachAutocomplete(row.querySelector(".sku-input"), "sku");
-      attachCalculators(row);
-
-      row.querySelector(".remove-line").addEventListener("click", () => row.remove());
-          updateGrandTotal();   // <-- add this!
-
+    json.records.forEach(r => {
+        const rev = Number(r.fields["Revision #"] || 0);
+        if (rev > maxRev) maxRev = rev;
     });
-  }
-}); // END DOM LOADED
-async function getNextRevision(planName) {
-  const url = `https://api.airtable.com/v0/${BASE_ID2}/${TAKEOFFS_TABLE_ID2}?filterByFormula=${encodeURIComponent(
-    `{Plan name} = "${planName}"`
-  )}`;
 
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${AIRTABLE_API_KEY2}` }
-  });
-
-  const json = await res.json();
-  if (!json.records.length) return 1;
-
-  let max = 0;
-  json.records.forEach(r => {
-    const rev = Number(r.fields.Revision || 0);
-    if (rev > max) max = rev;
-  });
-
-  return max + 1;
+    return maxRev + 1;
 }
+
+
 
 function collectAllSkuRows() {
   const rows = document.querySelectorAll("#line-item-body tr");
@@ -917,87 +805,274 @@ function collectAllSkuRows() {
   return items;
 }
 
-// ==========================================================
-// SAVE TAKEOFF (CALLED FROM HTML BUTTON)
-// ==========================================================
-async function saveTakeoff() {
-  const editingId = localStorage.getItem("editingTakeoffId");
 
-  // Collect header fields
-  const fields = {
-    "Takeoff Name": document.querySelector(
-      'input[placeholder="E.g., Spanish Style"]'
-    ).value,
-    "Type": document.getElementById("takeoff-type").value,
-    "Builder": [document.getElementById("builder-select").value],
-    "Plan name": document.getElementById("plan-select").value,
-    "Elevation": document.getElementById("elevation-select").value,
-    "Community Name": document.getElementById("community-select").value,
-  };
+async function patchLiftOffChanges(recordId, changes) {
+    try {
+        const url = `https://vanirlive.lbmlo.live/f5api/updateTakeoff`;
+        
+        const res = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "x-api-key": "bP1HdvmaE9mYEtjDeYYA737bypiNX5ZM"
+            },
+            body: JSON.stringify({
+                recordId: recordId,
+                changes: changes
+            })
+        });
 
-  // Build line item JSON
-  const rows = [...document.querySelectorAll("#line-item-body tr")].map(
-    (row) => {
-      const inputs = row.querySelectorAll("input");
-      const [
-        sku,
-        desc,
-        uom,
-        mat,
-        color,
-        qty,
-        vendor,
-        cost,
-        mult,
-        ext,
-        margin,
-        total,
-      ] = inputs;
-
-      return {
-        SKU: sku.value,
-        Description: desc.value,
-        UOM: uom.value,
-        "Material Type": mat.value,
-        "Color Group": color.value,
-        Qty: qty.value,
-        Vendor: vendor.value,
-        "Unit Cost": cost.value,
-        "UOM Mult": mult.value,
-        "Ext. Cost": ext.value,
-        "%": margin.value,
-        Total: total.value,
-      };
+        const data = await res.json();
+        console.log("📤 LiftOff PATCH response:", data);
+    } 
+    catch (err) {
+        console.error("❌ LiftOff PATCH failed:", err);
     }
-  );
-
-  // SAVE MAIN TAKEOFF RECORD
-  if (editingId) {
-    await fetch(
-      `https://api.airtable.com/v0/${BASE_ID2}/${TAKEOFFS_TABLE_ID2}/${editingId}`,
-      {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${AIRTABLE_API_KEY2}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ fields }),
-      }
-    );
-  } else {
-    await fetch(
-      `https://api.airtable.com/v0/${BASE_ID2}/${TAKEOFFS_TABLE_ID2}`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${AIRTABLE_API_KEY2}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ fields }),
-      }
-    );
-  }
-
-  alert("Saved successfully!");
-  window.location.href = "takeoff.html";
 }
+
+// ==========================================================
+// FINAL SAVE TAKEOFF (Correct Qty + JSON + Header)
+// ==========================================================
+
+function attachRowListeners(row) {
+    const qtyInput = row.querySelector(".qty-input");
+    const vendorInput = row.querySelector(".vendor-input");
+
+    // Initialize originals if missing
+    if (!row.dataset.originalQty) row.dataset.originalQty = qtyInput.value;
+    if (!row.dataset.originalVendor) row.dataset.originalVendor = vendorInput.value;
+
+    // When user changes QTY
+    qtyInput.addEventListener("input", () => {
+        console.log("✏️ Qty edited", qtyInput.value);
+    });
+
+    // When user changes Vendor
+    vendorInput.addEventListener("input", () => {
+        console.log("✏️ Vendor edited", vendorInput.value);
+    });
+}
+async function loadEstimatorsDropdown() {
+    const url = `https://api.airtable.com/v0/${BASE_ID2}/tbl1ymzV1CYldIGJU?fields[]=Full%20Name&pageSize=100`;
+
+    const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${AIRTABLE_API_KEY2}` }
+    });
+
+    const data = await res.json();
+    const dropdown = document.getElementById("estimator-select");
+
+    // Reset dropdown
+    dropdown.innerHTML = `<option value="">-- Select Estimator --</option>`;
+
+    data.records.forEach(rec => {
+        const opt = document.createElement("option");
+        opt.value = rec.id;   // linked record ID
+        opt.textContent = rec.fields["Full Name"];
+        dropdown.appendChild(opt);
+    });
+
+    console.log(`📌 Loaded ${data.records.length} estimators`);
+}
+
+async function loadEstimators() {
+    const url = `https://api.airtable.com/v0/${BASE_ID2}/tbl1ymzV1CYldIGJU?fields[]=Full%20Name`;
+
+    const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${AIRTABLE_API_KEY2}` }
+    });
+
+    const json = await res.json();
+
+    const estDrop = document.getElementById("estimator-select");
+    estDrop.innerHTML = `<option value="">Select Estimator</option>`;
+
+    json.records.forEach(rec => {
+        const opt = document.createElement("option");
+        opt.value = rec.id;                       // IMPORTANT: record ID!
+        opt.textContent = rec.fields["Full Name"];
+        estDrop.appendChild(opt);
+    });
+}
+
+// -----------------------------------------------------------
+// ⭐ FINAL FULL SAVE FUNCTION (Qty/Vendor patch + Revision #)
+// -----------------------------------------------------------
+
+function showToast(msg) {
+    const t = document.getElementById("toast");
+    if (!t) {
+        console.warn("⚠️ Toast element not found!");
+        return;
+    }
+
+    t.textContent = msg;
+    t.style.opacity = 1;
+
+    setTimeout(() => {
+        t.style.opacity = 0;
+    }, 2200);
+}
+// ------------------------------------------------------
+// CHECK IF Takeoff Name ALREADY EXISTS IN AIRTABLE
+// ------------------------------------------------------
+async function doesPlanAlreadyExist(takeoffName) {
+    if (!takeoffName) return false;
+
+    const url = `https://api.airtable.com/v0/${BASE_ID2}/${TAKEOFFS_TABLE_ID2}?filterByFormula=${encodeURIComponent(
+        `{Takeoff Name} = "${takeoffName}"`
+    )}`;
+
+    const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${AIRTABLE_API_KEY2}` }
+    });
+
+    const data = await res.json();
+
+    return data.records && data.records.length > 0;
+}
+
+async function doesTakeoffAlreadyExist(takeoffName) {
+    if (!takeoffName) return false;
+
+    const formula = `{Takeoff Name} = "${takeoffName}"`;
+
+    const url = `https://api.airtable.com/v0/${BASE_ID2}/${TAKEOFFS_TABLE_ID2}?filterByFormula=${encodeURIComponent(formula)}`;
+
+    const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${AIRTABLE_API_KEY2}` }
+    });
+
+    const data = await res.json();
+
+    return data.records && data.records.length > 0;
+}
+async function saveTakeoff() {
+    console.log("💾 Saving Takeoff…");
+
+    // --------------------------------------------
+    // load takeoff id / edit state
+    // --------------------------------------------
+    let recordId = localStorage.getItem("editingTakeoffId");
+    let isEdit = Boolean(recordId);
+
+    // --------------------------------------------
+    // declare these ONCE at top
+    // --------------------------------------------
+    const name = document.getElementById("nameInput")?.value.trim() || "";
+const takeoffName = document.getElementById("nameInput")?.value.trim() || "";
+
+    // --------------------------------------------
+    // prevent overwrite — check Takeoff Name
+    // --------------------------------------------
+// 🔥 Prevent overwrite — check Takeoff Name ONLY
+if (await doesTakeoffAlreadyExist(takeoffName)) {
+    isEdit = false;
+    recordId = null;
+    localStorage.removeItem("editingTakeoffId");
+}
+
+
+
+    // 1. Selected estimator (record ID) from dropdown
+    const selectedEstimatorId =
+        document.getElementById("estimator-select")?.value || "";
+
+    // 2. Typed override name
+    const typedEstimatorName =
+        document.getElementById("estimator-name-input")?.value.trim() || "";
+
+    // 3. Declare once (fixes your reference error)
+    let estimatorId = "";
+
+    // 4. If dropdown chosen -> use record ID
+    if (selectedEstimatorId) {
+        estimatorId = selectedEstimatorId;
+
+    // 5. If user typed a name -> look up record ID
+    } else if (typedEstimatorName) {
+        estimatorId = await getEstimatorRecordIdByName(typedEstimatorName);
+    }
+
+    console.log("🧾 Final Estimator ID:", estimatorId);
+
+     // ------------------------------
+    // Build JSON
+    // ------------------------------
+    let updatedJson = [];
+
+
+    document.querySelectorAll("#line-item-body tr").forEach(row => {
+        updatedJson.push({
+            SKU: row.querySelector(".sku-input")?.value || "",
+            Description: row.querySelector(".desc-input")?.value || "",
+            UOM: row.querySelector(".uom-input")?.value || "",
+            Qty: Number(row.querySelector(".qty-input")?.value || 0),
+            ColorGroup: row.querySelector(".color-input")?.value || "",
+            Vendor: row.querySelector(".vendor-input")?.value || "",
+            UnitCost: Number(row.querySelector(".cost-input")?.value || 0),
+            Mult: Number(row.querySelector(".mult-input")?.value || 1)
+        });
+    });
+
+    console.log("🧪 JSON before save:", updatedJson);
+
+  
+  // Compute correct next revision number
+const revision = await getNextRevision(takeoffName);
+console.log("🔢 Next Revision:", revision);
+
+
+    // ------------------------------
+    // Fields to save
+    // ------------------------------
+    const fields = {
+        "Takeoff Name": name,
+        "Imported JSON": JSON.stringify(updatedJson),
+        "Revision #": revision,
+        "Estimator": estimatorId ? [estimatorId] : []
+    };
+
+    console.log("📤 Fields to save:", fields);
+
+    // ------------------------------
+    // POST or PATCH
+    // ------------------------------
+    const url = isEdit
+        ? `https://api.airtable.com/v0/${BASE_ID2}/${TAKEOFFS_TABLE_ID2}/${recordId}`
+        : `https://api.airtable.com/v0/${BASE_ID2}/${TAKEOFFS_TABLE_ID2}`;
+
+    const method = isEdit ? "PATCH" : "POST";
+
+    try {
+        const res = await fetch(url, {
+            method,
+            headers: {
+                Authorization: `Bearer ${AIRTABLE_API_KEY2}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ fields })
+        });
+
+        const data = await res.json();
+
+        console.log("📥 Airtable save response:", data);
+
+        if (!res.ok) {
+            console.error("❌ Save failed:", data);
+            alert("Save failed. See console.");
+            return;
+        }
+
+        if (!isEdit && data.id) {
+            localStorage.setItem("editingTakeoffId", data.id);
+        }
+
+        alert("Takeoff saved successfully!");
+
+    } catch (err) {
+        console.error("❌ Save error:", err);
+        alert("Save error. See console.");
+    }
+}
+

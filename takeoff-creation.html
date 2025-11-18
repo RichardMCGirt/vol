@@ -146,6 +146,17 @@
 />
 
           </div>
+<label>Estimator</label>
+
+<select id="estimator-select" class="w-full">
+    <option value="">-- Select Estimator --</option>
+</select>
+
+<!-- User can still type a brand-new name -->
+<input id="estimator-name-input"
+       class="w-full mt-2"
+       placeholder="Or type estimator name manually">
+
 
           <div>
             <label class="text-xs text-gray-500 font-medium">Takeoff Type *</label>
@@ -185,21 +196,16 @@
     >
       + Add
     </button>
-<button
-  id="savePlanElevation"
-  type="button"
-  class="bg-blue-600 text-white text-xs px-3 py-2 rounded-md hover:bg-blue-700 shadow-sm"
->
-  Save
-</button>
-<button id="manual-save-btn"
-        class="bg-blue-600 text-white px-4 py-2 rounded">
-  Manual Save
-</button>
+
+
 
   </div>
 </div>
+<button id="savePlanElevation" type="button">Save Plan/Elevation</button>
 
+<button id="manual-save-btn" class="save-takeoff-btn">
+    💾 Save Takeoff
+</button>
 <div>
   <label class="text-xs text-gray-500 font-medium">Elevation *</label>
   <div class="flex space-x-2 mt-1">
@@ -247,18 +253,7 @@
   <section id="line-items-section">
     <h2 class="text-lg font-semibold text-gray-700 mb-3">Takeoff Line Items</h2>
 
-<div id="toast" style="
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  background: #333;
-  color: white;
-  padding: 10px 14px;
-  border-radius: 6px;
-  opacity: 0;
-  transition: opacity .3s ease;
-  pointer-events: none;">
-</div>
+
     <table class="min-w-full text-sm border-collapse border border-gray-200 rounded-md overflow-hidden">
       <thead class="bg-gray-100 border-b border-gray-200">
         <tr class="text-gray-600 text-xs uppercase tracking-wider">
@@ -267,8 +262,7 @@
           <th class="px-3 py-2 border">UOM</th>
           <th class="px-3 py-2 border">Material Type</th>
           <th class="px-3 py-2 border">Color Group</th>
-                    <th class="px-3 py-2 border">Vendor</th>
-
+          <th class="px-3 py-2 border">Vendor</th>
           <th class="px-3 py-2 border">Quantity</th>
           <th class="px-3 py-2 border">Unit Cost</th>
           <th class="px-3 py-2 border">UOM Mult</th>
@@ -298,14 +292,28 @@
     </div>
   </section>
 </div>
+<div id="toast"
+     style="
+       position: fixed;
+       bottom: 20px;
+       right: 20px;
+       padding: 12px 18px;
+       background: #333;
+       color: white;
+       border-radius: 6px;
+       opacity: 0;
+       transition: opacity 0.4s ease;
+       z-index: 999999;
+       pointer-events: none;">
+</div>
 
     <!-- Scripts -->
   <script src="js/nav.js"></script>
+<script src="js/takeoff-builder.js"></script>
 <script src="js/createtakeoff.js"></script>
-<script src="js/takeoff-builder.js"></script>   <!-- MOVE AFTER -->
+
 <script src="js/upload.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/manualcreate.js"></script>
 
   </body>
 </html>

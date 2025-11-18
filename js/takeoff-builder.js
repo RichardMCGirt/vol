@@ -572,8 +572,7 @@ if (builder) {
     if (elevationText === "__new__") elevationText = prompt("Enter new Elevation name:") || "";
 
     if (!planText.trim() || !elevationText.trim()) {
-      alert("Please enter both a Plan and Elevation name.");
-      return;
+  
     }
 
     try {
