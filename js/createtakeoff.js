@@ -872,6 +872,50 @@ attachAutocomplete(row.querySelector(".sku-input"), "sku");
     });
   }
 }); // END DOM LOADED
+async function getNextRevision(planName) {
+  const url = `https://api.airtable.com/v0/${BASE_ID2}/${TAKEOFFS_TABLE_ID2}?filterByFormula=${encodeURIComponent(
+    `{Plan name} = "${planName}"`
+  )}`;
+
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${AIRTABLE_API_KEY2}` }
+  });
+
+  const json = await res.json();
+  if (!json.records.length) return 1;
+
+  let max = 0;
+  json.records.forEach(r => {
+    const rev = Number(r.fields.Revision || 0);
+    if (rev > max) max = rev;
+  });
+
+  return max + 1;
+}
+
+function collectAllSkuRows() {
+  const rows = document.querySelectorAll("#line-item-body tr");
+  const items = [];
+
+  rows.forEach(row => {
+    items.push({
+      SKU: row.querySelector(".sku-input")?.value || "",
+      Description: row.querySelector(".desc-input")?.value || "",
+      UOM: row.querySelector(".uom-input")?.value || "",
+      "Material Type": row.querySelector(".mat-input")?.value || "",
+      "Color Group": row.querySelector(".color-input")?.value || "",
+      Vendor: row.querySelector(".vendor-input")?.value || "",
+      Qty: Number(row.querySelector(".qty-input")?.value || 0),
+      "Unit Cost": Number(row.querySelector(".cost-input")?.value || 0),
+      "UOM Mult": Number(row.querySelector(".mult-input")?.value || 1),
+      "Ext. Cost": Number(row.querySelector(".extcost-input")?.value || 0),
+      "%": Number(row.querySelector(".percent-input")?.value || 0),
+      Total: Number(row.querySelector(".total-input")?.value || 0)
+    });
+  });
+
+  return items;
+}
 
 // ==========================================================
 // SAVE TAKEOFF (CALLED FROM HTML BUTTON)
@@ -926,78 +970,6 @@ async function saveTakeoff() {
       };
     }
   );
-
-  // SAVE JSON RECORD FIRST
-  let jsonRecordId;
-
-  if (editingId) {
-    // fetch main record
-    const res = await fetch(
-      `https://api.airtable.com/v0/${BASE_ID2}/${TAKEOFFS_TABLE_ID2}/${editingId}`,
-      { headers: { Authorization: `Bearer ${AIRTABLE_API_KEY2}` } }
-    );
-
-    const rec = await res.json();
-
-    // If JSON record exists → update it
-    if (rec.fields["Takeoff Creation"]) {
-      jsonRecordId = rec.fields["Takeoff Creation"][0];
-
-      await fetch(
-        `https://api.airtable.com/v0/${BASE_ID2}/${SKU_TABLE_ID2}/${jsonRecordId}`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${AIRTABLE_API_KEY2}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            fields: { "Imported JSON": JSON.stringify(rows) },
-          }),
-        }
-      );
-    } else {
-      // No JSON record → create one
-      const createRes = await fetch(
-        `https://api.airtable.com/v0/${BASE_ID2}/${SKU_TABLE_ID2}`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${AIRTABLE_API_KEY2}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            fields: { "Imported JSON": JSON.stringify(rows) },
-          }),
-        }
-      );
-
-      const newJson = await createRes.json();
-      jsonRecordId = newJson.id;
-
-      fields["Takeoff Creation"] = [jsonRecordId];
-    }
-  } else {
-    // NEW TAKEOFF MODE
-    const createRes = await fetch(
-      `https://api.airtable.com/v0/${BASE_ID2}/${SKU_TABLE_ID2}`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${AIRTABLE_API_KEY2}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          fields: { "Imported JSON": JSON.stringify(rows) },
-        }),
-      }
-    );
-
-    const newJson = await createRes.json();
-    jsonRecordId = newJson.id;
-
-    fields["Takeoff Creation"] = [jsonRecordId];
-  }
 
   // SAVE MAIN TAKEOFF RECORD
   if (editingId) {
