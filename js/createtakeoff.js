@@ -12,7 +12,7 @@ const AIRTABLE_API_KEY2 =
   "pat6QyOfQCQ9InhK4.4b944a38ad4c503a6edd9361b2a6c1e7f02f216ff05605f7690d3adb12c94a3c";
 const BASE_ID2 = "appnZNCcUAJCjGp7L";
 const TAKEOFFS_TABLE_ID2 = "tblZpnyqHJeC1IaZq";
-const SKU_TABLE_ID2 = "tblcG08fWPOesXDfC"; // JSON table
+const SKU_TABLE_ID2 = "tblZpnyqHJeC1IaZq"; // JSON table
 
 window.skuData = [];
 let builderLookup = {};  
@@ -758,9 +758,57 @@ if (builderRecordId) {
     revealLineItemsSection();
 
     // LOAD JSON ROW
-    if (f["Takeoff Creation"] && f["Takeoff Creation"].length > 0) {
-      await loadSkuJsonRecord(f["Takeoff Creation"][0]);
-    }
+   console.log("📦 Loading JSON directly from takeoff row…");
+
+const jsonRaw =
+  f["Imported JSON"] ||
+  (Array.isArray(f["Imported JSON (from Takeoffs)"]) ? f["Imported JSON (from Takeoffs)"][0] : "") ||
+  "[]";
+
+let items = [];
+
+try {
+  items = JSON.parse(jsonRaw);
+  console.log("📌 Parsed JSON items:", items);
+} catch (err) {
+  console.error("❌ Error parsing JSON:", err, jsonRaw);
+}
+
+lineItemBody.innerHTML = "";
+
+items.forEach(item => {
+  const row = document.createElement("tr");
+  row.innerHTML = `
+<td><input class="sku-input w-full" value="${item.SKU || ""}"></td>
+<td><input class="desc-input w-full" value="${item.Description || ""}"></td>
+<td><input class="uom-input w-full" value="${item.UOM || ""}"></td>
+
+<td><input class="mat-input w-full" value="${item["Material Type"] || ""}"></td>
+<td><input class="color-input w-full" value="${item["Color Group"] || ""}"></td>
+<td><input class="vendor-input w-full" value="${item.Vendor || ""}"></td>
+
+<td><input class="qty-input w-full" type="number" value="${item.Qty || 1}"></td>
+<td><input class="cost-input w-full" type="number" value="${item["Unit Cost"] || 0}"></td>
+<td><input class="mult-input w-full" type="number" value="${item["UOM Mult"] || 1}"></td>
+
+<td><input class="extcost-input w-full" type="number" value="${item["Ext. Cost"] || 0}" readonly></td>
+<td><input class="percent-input w-full" type="number" value="${item["%"] || 0}"></td>
+<td><input class="total-input w-full" type="number" value="${item.Total || 0}" readonly></td>
+
+<td class="text-center">
+    <button class="remove-line text-red-500">🗑️</button>
+</td>
+`;
+
+  lineItemBody.appendChild(row);
+
+  enableVendorClickDropdown(row.querySelector(".vendor-input"));
+  attachAutocomplete(row.querySelector(".sku-input"), "sku");
+  attachCalculators(row);
+});
+
+updateGrandTotal();
+
   }
 
   // ==========================================================
