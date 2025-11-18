@@ -141,6 +141,10 @@ async function fetchTakeoffs() {
   console.log(`📦 Loaded ${records.length} takeoff records from tblZpnyqHJeC1IaZq`);
   return records;
 }
+document.getElementById("create-takeoff-btn").addEventListener("click", () => {
+  localStorage.removeItem("editingTakeoffId");
+  window.location.href = "takeoff-creation.html";
+});
 
 // ------------------------- FORMATTERS -------------------------
 function formatDate(dateStr) {

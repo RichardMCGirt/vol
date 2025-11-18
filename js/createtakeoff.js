@@ -24,14 +24,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   console.log("🎬 Takeoff Creation Page Ready");
 
   // DOM elements
-  const nameInput = document.querySelector(
-    'input[placeholder="E.g., Spanish Style"]'
-  );
-  const typeSelect = document.getElementById("takeoff-type");
-  const builderSelect = document.getElementById("builder-select");
-  const planSelect = document.getElementById("plan-select");
-  const elevationSelect = document.getElementById("elevation-select");
-  const communitySelect = document.getElementById("community-select");
+const nameInput = document.getElementById("nameInput");
+const typeSelect = document.getElementById("takeoff-type");
+const builderSelect = document.getElementById("builder-select");
+const planSelect = document.getElementById("plan-select");
+const elevationSelect = document.getElementById("elevation-select");
+const communitySelect = document.getElementById("community-select");
+
 
   const placeholderBox = document.getElementById("placeholder-box");
   const lineItemsSection = document.getElementById("line-items-section");
@@ -120,6 +119,8 @@ async function populatePlans(builder) {
     planSelect.innerHTML =
         `<option value="">Select Plan</option>` +
         plans.map(p => `<option value="${p}">${p}</option>`).join("");
+        maybeShowLineItems();   // 🔥 FORCE re-check
+
 }
 async function populateElevations(builder, plan) {
     const all = await fetchAllTakeoffs();
@@ -133,6 +134,8 @@ async function populateElevations(builder, plan) {
     elevationSelect.innerHTML =
         `<option value="">Select Elevation</option>` +
         elevs.map(e => `<option value="${e}">${e}</option>`).join("");
+        maybeShowLineItems();   // 🔥 FORCE re-check
+
 }
 async function populateCommunities(builder, plan, elevation) {
     const all = await fetchAllTakeoffs();
@@ -150,56 +153,53 @@ async function populateCommunities(builder, plan, elevation) {
     communitySelect.innerHTML =
         `<option value="">Select Community</option>` +
         comms.map(c => `<option value="${c}">${c}</option>`).join("");
+        maybeShowLineItems();   // 🔥 FORCE re-check
+
 }
 
   // ==========================================================
   // LOGIC TO SHOW TABLE AFTER HEADERS FILLED (CREATE MODE)
   // ==========================================================
-  function allFieldsFilled() {
+ function allFieldsFilled() {
+    const name = document.getElementById("nameInput")?.value.trim();
+    const type = document.getElementById("takeoff-type")?.value;
+    const builder = document.getElementById("builder-select")?.value;
+    const plan = document.getElementById("plan-select")?.value;
+    const elevation = document.getElementById("elevation-select")?.value;
+    const community = document.getElementById("community-select")?.value;
+
+    console.log("CHECK FIELDS:", { name, type, builder, plan, elevation, community });
+
     return (
-      nameInput.value.trim() &&
-      typeSelect.value &&
-      builderSelect.value &&
-      planSelect.value &&
-      elevationSelect.value &&
-      communitySelect.value
+        name &&
+        type &&
+        builder &&
+        plan &&
+        elevation &&
+        community
     );
-  }
+}
 
-  function maybeShowLineItems() {
-    if (isLoadingEditMode) return; // prevent flicker during edit load
-    if (allFieldsFilled()) revealLineItemsSection();
-  }
 
-  [
-    nameInput,
-    typeSelect,
-    builderSelect,
-    planSelect,
-    elevationSelect,
-    communitySelect,
-  ]
-    .filter(Boolean)
-    .forEach((el) => {
-      el.addEventListener("change", maybeShowLineItems);
-      el.addEventListener("input", maybeShowLineItems);
-    });
+function maybeShowLineItems() {
+  revealLineItemsSection(); // always show table, no conditions
+}
+
 
   // ==========================================================
   // REVEAL TABLE SECTION
   // ==========================================================
-  function revealLineItemsSection() {
-    placeholderBox.classList.add("hidden");
-    lineItemsSection.classList.remove("hidden");
-    lineItemsSection.style.opacity = "1";
+function revealLineItemsSection() {
+    console.log("🔧 revealLineItemsSection() CALLED");
 
-    // CREATE MODE → LOAD CSV SKUs
-    if (!editingId) {
-      console.log("📌 CREATE MODE → Loading SKUs into table...");
-      lineItemBody.innerHTML = "";
-      window.skuData.forEach((skuObj) => addLineItemFromSku(skuObj));
-    }
-  }
+    document.getElementById("placeholder-box").style.display = "none";
+    const section = document.getElementById("line-items-section");
+
+    section.style.display = "block";
+    section.style.opacity = 1;
+}
+
+
 
   // ==========================================================
   // LOAD SKU CSV DATA
