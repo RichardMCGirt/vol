@@ -1,10 +1,17 @@
 // ------------------------- CONFIG -------------------------
 const AIRTABLE_API_KEY = "pat6QyOfQCQ9InhK4.4b944a38ad4c503a6edd9361b2a6c1e7f02f216ff05605f7690d3adb12c94a3c";
 const BASE_ID = "appnZNCcUAJCjGp7L";
-const SKU_TABLE_ID = "tblcG08fWPOesXDfC";
+const SKU_TABLE_ID = "tblZpnyqHJeC1IaZq";
+let filters = {
+  search: "",
+  builder: "",
+  status: "",
+  type: "",
+  branch: ""
+};
 
-let builderLookup = {};  // recId → Client Name
-const BUILDERS_TABLE_ID = "tblDkASnuImCKBQyO"; // ⭐ your source table
+let builderLookup = {}; 
+const BUILDERS_TABLE_ID = "tblDkASnuImCKBQyO"; 
 
 // ⭐ The correct table for Takeoff List
 const TAKEOFFS_TABLE_ID = "tblZpnyqHJeC1IaZq";
@@ -18,9 +25,9 @@ if (!tableBody) {
 
 // ------------------------- PAGINATION STATE -------------------------
 let currentPage = 1;
-let pageSize = 20;             // 🔧 Change to 10 / 50 / 100 if you like
-let allTakeoffRecords = [];    // ← holds ALL records from Airtable
-let paginatedRecords = [];     // ← only records for the current page
+let pageSize = 20;            
+let allTakeoffRecords = [];   
+let paginatedRecords = [];     
 
 // ------------------------- FETCH BUILDERS -------------------------
 async function fetchBuilders() {
@@ -51,6 +58,8 @@ async function fetchBuilders() {
   console.log(`🏗️ Loaded ${records.length} builders`);
 }
 async function getSkuCountFromJsonRecord(recordId) {
+  console.log("🟦 Fetching JSON for:", recordId);
+
   const res = await fetch(
     `https://api.airtable.com/v0/${BASE_ID}/${SKU_TABLE_ID}/${recordId}`,
     {
@@ -59,27 +68,94 @@ async function getSkuCountFromJsonRecord(recordId) {
   );
 
   if (!res.ok) {
-    console.error("Error fetching SKU JSON row:", await res.text());
+    console.error("❌ Error fetching SKU JSON row:", await res.text());
     return 0;
   }
 
   const data = await res.json();
+
+  console.log("📄 JSON Record Data:", data);
+
   const jsonStr = data.fields["Imported JSON"];
 
-  if (!jsonStr) return 0;
+  console.log("📜 Imported JSON Field Raw:", jsonStr);
+
+  if (!jsonStr) {
+    console.warn("⚠ No Imported JSON found for:", recordId);
+    return 0;
+  }
 
   try {
     const parsed = JSON.parse(jsonStr);
+    console.log("🔍 Parsed JSON:", parsed);
 
-    // expected: [ { ... }, { ... } ]
-    if (Array.isArray(parsed)) return parsed.length;
+    if (Array.isArray(parsed)) {
+      console.log("📦 SKU Count:", parsed.length);
+      return parsed.length;
+    }
 
+    console.warn("⚠ Imported JSON is NOT an array!", parsed);
     return 0;
+
   } catch (err) {
-    console.error("Invalid JSON in Imported JSON:", err);
+    console.error("❌ JSON Parse Error:", err);
     return 0;
   }
 }
+
+// ------------------------- GROUP BY BRANCH -------------------------
+function applyFilters(records) {
+  return records.filter(rec => {
+    const f = rec.fields;
+
+    const name = (f["Takeoff Name"] || "").toLowerCase();
+    const builder = builderLookup[f["Builder"]?.[0]] || "";
+    const status = f["Status"] || "";
+    const type = f["Type"] || "";
+    const branch = f["Division (from Name)"] || "";
+
+    // Search filter
+    if (filters.search && !name.includes(filters.search.toLowerCase())) {
+      return false;
+    }
+
+    // Builder filter
+    if (filters.builder && builder !== filters.builder) {
+      return false;
+    }
+
+    // Status filter
+    if (filters.status && status !== filters.status) {
+      return false;
+    }
+
+    // Type filter
+    if (filters.type && type !== filters.type) {
+      return false;
+    }
+
+    // Branch filter
+    if (filters.branch && branch !== filters.branch) {
+      return false;
+    }
+
+    return true;
+  });
+}
+
+function groupByBranch(records) {
+  const groups = {};
+
+  records.forEach(rec => {
+    const branch = rec.fields["Division (from Name)"] || "Unknown";
+
+    if (!groups[branch]) groups[branch] = [];
+    groups[branch].push(rec);
+  });
+
+  return groups;
+}
+
 async function loadExistingTakeoff(recId) {
   const url = `https://api.airtable.com/v0/${BASE_ID}/${TAKEOFFS_TABLE_ID}/${recId}`;
 
@@ -196,27 +272,9 @@ function renderRow(rec) {
   // --- Get count for this plan ---
 let skuHtml = `<div class="text-xs text-gray-400">Loading SKUs...</div>`;
 
-let linkedJsonRecordId = null;
+// --- Get count for this plan ---
+const skuCount = getSkuCountFromTakeoffFields(f);
 
-// 🔍 Try to find linked JSON record
-if (Array.isArray(f["Takeoff Creation"]) && f["Takeoff Creation"].length > 0) {
-  linkedJsonRecordId = f["Takeoff Creation"][0];
-}
-setTimeout(() => {
-  if (linkedJsonRecordId) {
-    getSkuCountFromJsonRecord(linkedJsonRecordId).then(count => {
-      const cell = document.querySelector(`#sku-count-${id}`);
-      if (cell) {
-        cell.textContent = `${count} SKU${count === 1 ? "" : "s"}`;
-      }
-    });
-  } else {
-    const cell = document.querySelector(`#sku-count-${id}`);
-    if (cell) {
-      cell.textContent = "0 SKUs";
-    }
-  }
-}, 10);
   return `
     <tr data-id="${id}">
       <td class="py-3 px-3">
@@ -242,9 +300,10 @@ setTimeout(() => {
         <div class="text-xs text-gray-500">${community}</div>
 
         <!-- NEW ⭐ Takeoff Count Line -->
-      <div id="sku-count-${id}" class="text-xs text-blue-600 font-semibold mt-1">
-  Loading SKUs...
+ <div id="sku-count-${id}" class="text-xs text-blue-600 font-semibold mt-1">
+  ${skuCount} SKU${skuCount === 1 ? "" : "s"}
 </div>
+
 
       </td>
 
@@ -376,58 +435,58 @@ function countTakeoffsByPlan(records) {
 
 // ------------------------- RENDER PAGINATED TABLE -------------------------
 function renderPaginatedTable() {
-  const total = allTakeoffRecords.length;
+  // 1. Apply filters
+  const filtered = applyFilters(allTakeoffRecords);
 
-  if (!total) {
-    tableBody.innerHTML = `
-      <tr>
-        <td colspan="10" class="py-4 px-3 text-center text-gray-500">
-          No takeoffs found.
+  // 2. Group filtered results
+  const groups = groupByBranch(filtered);
+
+  let html = "";
+
+  Object.entries(groups).forEach(([branch, records]) => {
+    const groupId = branch.replace(/\s+/g, "-").toLowerCase();
+
+    // Header
+    html += `
+      <tr class="bg-gray-100 cursor-pointer" data-group="${groupId}">
+        <td colspan="10" class="py-3 px-4 font-semibold text-gray-800">
+          ${branch} — <span class="text-blue-600">${records.length} Takeoffs</span>
         </td>
       </tr>
     `;
-  } else {
-    const totalPages = Math.max(1, Math.ceil(total / pageSize));
-    if (currentPage > totalPages) currentPage = totalPages;
 
-    const start = (currentPage - 1) * pageSize;
-    const end = start + pageSize;
+    // Records in that branch
+    records.forEach(rec => {
+      html += `
+        <tr class="branch-row hidden group-${groupId}">
+          ${renderRow(rec)}
+        </tr>
+      `;
+    });
+  });
 
-    paginatedRecords = allTakeoffRecords.slice(start, end);
-    tableBody.innerHTML = paginatedRecords.map(renderRow).join("");
+  tableBody.innerHTML = html;
 
-    enableRowInteractions();
-  }
+  enableRowInteractions();
+  enableGroupToggles();
 
-  // 🔢 Update total + page info
-  const totalSpan = document.getElementById("takeoff-total");
-  if (totalSpan) {
-    totalSpan.textContent = `Total Records: ${total}`;
-  }
-
-  const pageInfo = document.getElementById("page-info");
-  if (pageInfo) {
-    const totalPages = Math.max(1, Math.ceil(Math.max(total, 1) / pageSize));
-    pageInfo.textContent =
-      total > 0
-        ? `Page ${currentPage} of ${totalPages}`
-        : "Page 1 of 1";
-  }
-
-  // 📊 Update stat cards if they exist
-  const totalCard = document.getElementById("total-takeoff-count");
-  if (totalCard) {
-    totalCard.textContent = total;
-  }
-
-  const draftCount = allTakeoffRecords.filter(
-    r => r.fields["Status"] === "Draft"
-  ).length;
-  const draftCard = document.getElementById("draft-takeoff-count");
-  if (draftCard) {
-    draftCard.textContent = draftCount;
-  }
+  // Update stat cards
+  document.getElementById("total-takeoff-count").textContent = filtered.length;
+  document.getElementById("draft-takeoff-count").textContent =
+    filtered.filter(r => r.fields["Status"] === "Draft").length;
 }
+
+function enableGroupToggles() {
+  document.querySelectorAll("[data-group]").forEach(header => {
+    header.addEventListener("click", () => {
+      const group = header.getAttribute("data-group");
+      const rows = document.querySelectorAll(`.group-${group}`);
+
+      rows.forEach(r => r.classList.toggle("hidden"));
+    });
+  });
+}
+
 
 // ------------------------- MAIN RENDER FUNCTION -------------------------
 async function populateTakeoffTable() {
@@ -437,10 +496,47 @@ async function populateTakeoffTable() {
   window.takeoffCounts = countTakeoffsByPlan(records);
 
   allTakeoffRecords = records;
+  window.allTakeoffRecords = allTakeoffRecords;
+
   currentPage = 1;  // reset to first page
   renderPaginatedTable();
 
   console.log("✅ Takeoff table populated with pagination");
+}
+// ------------------------- GROUP TOGGLE INTERACTION -------------------------
+function enableGroupToggles() {
+  document.querySelectorAll("[data-group]").forEach(header => {
+    header.addEventListener("click", () => {
+      const group = header.getAttribute("data-group");
+      const rows = document.querySelectorAll(`.group-${group}`);
+
+      rows.forEach(r => r.classList.toggle("hidden"));
+    });
+  });
+}
+function getSkuCountFromTakeoffFields(fields) {
+  // Try a few likely field names
+  let raw = fields["Imported JSON"] 
+         || fields["Imported JSON (from Takeoffs)"] 
+         || fields["Imported JSON (From Takeoffs)"];
+
+  // Handle Airtable lookup-style arrays: ["[...]"]
+  if (Array.isArray(raw)) {
+    raw = raw[0];
+  }
+
+  if (!raw) return 0;
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed.length;
+    }
+    return 0;
+  } catch (err) {
+    console.error("❌ Error parsing Imported JSON on takeoff record:", err, raw);
+    return 0;
+  }
 }
 
 // ------------------------- INIT -------------------------
@@ -469,6 +565,50 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     });
   }
+  // Populate Builder Filter
+const builderFilter = document.getElementById("builder-filter");
+Object.values(builderLookup).forEach(name => {
+  const opt = document.createElement("option");
+  opt.value = name;
+  opt.textContent = name;
+  builderFilter.appendChild(opt);
+});
+
+// Populate Branch Filter
+const branchFilter = document.getElementById("branch-filter");
+const branches = [...new Set(allTakeoffRecords.map(r => r.fields["Division (from Name)"] || "Unknown"))];
+
+branches.sort().forEach(branch => {
+  const opt = document.createElement("option");
+  opt.value = branch;
+  opt.textContent = branch;
+  branchFilter.appendChild(opt);
+});
+document.getElementById("search-filter").addEventListener("input", e => {
+  filters.search = e.target.value;
+  renderPaginatedTable();
+});
+
+document.getElementById("builder-filter").addEventListener("change", e => {
+  filters.builder = e.target.value;
+  renderPaginatedTable();
+});
+
+document.getElementById("status-filter").addEventListener("change", e => {
+  filters.status = e.target.value;
+  renderPaginatedTable();
+});
+
+document.getElementById("type-filter").addEventListener("change", e => {
+  filters.type = e.target.value;
+  renderPaginatedTable();
+});
+
+document.getElementById("branch-filter").addEventListener("change", e => {
+  filters.branch = e.target.value;
+  renderPaginatedTable();
+});
+
 
 });
 

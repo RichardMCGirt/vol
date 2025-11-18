@@ -3,7 +3,7 @@
 // ========== CONFIG ==========
 const EAIRTABLE_API_KEY = "pat6QyOfQCQ9InhK4.4b944a38ad4c503a6edd9361b2a6c1e7f02f216ff05605f7690d3adb12c94a3c";
 const EBASE_ID = "appnZNCcUAJCjGp7L";
-const ETABLE_ID = "tblcG08fWPOesXDfC"; // Line item table
+const ETABLE_ID = "tblZpnyqHJeC1IaZq"; // Line item table
 const ESTIMATOR_TABLE_ID = "tbl1ymzV1CYldIGJU"; // Full Name table
 // =====================
 // CONFIG
@@ -233,18 +233,19 @@ console.log("📌 FINAL TAKEOFF NAME:", takeoffName);
 //--------------------------------------
 // CREATE OR FIND TAKEOFF NAME RECORD
 //--------------------------------------
-fields["Takeoff Name"] = takeoffName;
 
 //--------------------------------------
 // UPLOAD FINAL JSON RECORD
 //--------------------------------------
 await uploadRow({
   fields: {
-"Plan Name": takeoffName,
-    "Estimator": estimatorId ? [estimatorId] : [],        // ⭐ MUST BE ARRAY
-    "Imported JSON": JSON.stringify(parsedRows)           // ⭐ All SKUs in one record
+    "Plan name": takeoffName,
+    "Takeoff Name": takeoffName,
+    "Estimator": estimatorId ? [estimatorId] : [],
+    "Imported JSON": JSON.stringify(parsedRows)
   }
 });
+
   alert("✅ Takeoff import complete!");
 });
 });
@@ -257,7 +258,7 @@ async function fetchTakeoffNameId(takeoffName) {
   const safeValue = takeoffName.replace(/'/g, "\\'");
   const filter = encodeURIComponent(`{Takeoff Name}='${safeValue}'`);
 
-  const url = `https://api.airtable.com/v0/appnZNCcUAJCjGp7L/tblcG08fWPOesXDfC?filterByFormula=${filter}`;
+  const url = `https://api.airtable.com/v0/appnZNCcUAJCjGp7L/tblZpnyqHJeC1IaZq?filterByFormula=${filter}`;
 
   console.log("🔎 Searching Takeoff Name:", takeoffName, "→", url);
 
@@ -302,7 +303,7 @@ async function fetchEstimatorRecordId(name) {
 async function getTakeoffNameRecordId(name) {
   if (!name || name.trim() === "") return null;
 
-  const url = `https://api.airtable.com/v0/${EBASE_ID}/tblcG08fWPOesXDfC?filterByFormula=${encodeURIComponent(
+  const url = `https://api.airtable.com/v0/${EBASE_ID}/tblZpnyqHJeC1IaZq?filterByFormula=${encodeURIComponent(
     `{Takeoff Name}="${name}"`
   )}`;
 

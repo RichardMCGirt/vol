@@ -131,12 +131,17 @@ function collectLineItemJSON() {
 /**********************************************************
  *  STEP 4 — Save JSON to Table B (create or patch)
  **********************************************************/
+/**********************************************************
+ *  STEP 4 — Save JSON to Table B (create or patch)
+ **********************************************************/
 async function saveJsonRecord(mainRecordId, jsonData) {
+
+    const planName = document.getElementById("plan-select").value || "";
 
     // 1️⃣ Search if a JSON row already exists for this takeoff
     const findUrl =
         `https://api.airtable.com/v0/${mBASE_ID}/${mTABLE_JSON}?filterByFormula=` +
-        encodeURIComponent(`{${mFIELD_LINK}}='${mainRecordId}'`);
+        encodeURIComponent(`{Takeoff Link}='${mainRecordId}'`);
 
     const findRes = await fetch(findUrl, {
         headers: { Authorization: `Bearer ${mAPI_KEY}` }
@@ -161,7 +166,8 @@ async function saveJsonRecord(mainRecordId, jsonData) {
             },
             body: JSON.stringify({
                 fields: {
-                    [FIELD_JSON]: JSON.stringify(jsonData)
+                    "Imported JSON": JSON.stringify(jsonData),
+                    "Plan Name": planName
                 }
             })
         });
@@ -174,21 +180,22 @@ async function saveJsonRecord(mainRecordId, jsonData) {
 
     const createUrl = `https://api.airtable.com/v0/${mBASE_ID}/${mTABLE_JSON}`;
 
-await fetch(createUrl, {
-    method: "POST",
-    headers: {
-        Authorization: `Bearer ${mAPI_KEY}`,
-        "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-        fields: {
-            "Takeoff Link": [mainRecordId],   // MUST be array
-            "Imported JSON": JSON.stringify(jsonData)
-        }
-    })
-});
-
+    await fetch(createUrl, {
+        method: "POST",
+        headers: {
+            Authorization: `Bearer ${mAPI_KEY}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            fields: {
+                "Takeoff Link": [mainRecordId],
+                "Imported JSON": JSON.stringify(jsonData),
+                "Plan Name": planName
+            }
+        })
+    });
 }
+
 
 /**********************************************************
  *  VALIDATE THAT STORED MAIN RECORD ID EXISTS

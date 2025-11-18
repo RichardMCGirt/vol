@@ -127,18 +127,55 @@
       </div>
 
       <!-- Filters -->
-      <div class="bg-white border border-gray-200 rounded-lg p-4">
-        <h2 class="text-sm font-semibold text-gray-600 mb-4">Filters & Search</h2>
-        <div class="grid grid-cols-4 gap-4">
-          <input type="text" placeholder="Search by name..." class="col-span-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500 focus:outline-none" />
-          <select class="col-span-1 border border-gray-300 rounded-md px-3 py-2 text-sm">
-            <option>Select Builder</option>
-          </select>
-        <select id="status-filter" class="col-span-1 border border-gray-300 rounded-md px-3 py-2 text-sm">
-  <option value="">Select Status</option>
-  <option value="Completed">Completed</option>
-  <option value="Draft">Draft</option>
-</select>
+<div class="grid grid-cols-5 gap-4">
+
+  <!-- Search -->
+  <input 
+    id="search-filter"
+    type="text"
+    placeholder="Search by name..."
+    class="border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500 focus:outline-none" 
+  />
+
+  <!-- Builder filter (populated later) -->
+  <select 
+    id="builder-filter"
+    class="border border-gray-300 rounded-md px-3 py-2 text-sm"
+  >
+    <option value="">All Builders</option>
+  </select>
+
+  <!-- Status -->
+  <select 
+    id="status-filter"
+    class="border border-gray-300 rounded-md px-3 py-2 text-sm"
+  >
+    <option value="">All Status</option>
+    <option value="Complete">Completed</option>
+    <option value="Draft">Draft</option>
+  </select>
+
+  <!-- Type -->
+  <select 
+    id="type-filter"
+    class="border border-gray-300 rounded-md px-3 py-2 text-sm"
+  >
+    <option value="">All Types</option>
+    <option value="Siding">Siding</option>
+    <option value="Columns">Columns</option>
+    <option value="Rails">Rails</option>
+    <option value="Screen Porch">Screen Porch</option>
+  </select>
+
+  <!-- Branch Filter (Division) -->
+  <select 
+    id="branch-filter"
+    class="border border-gray-300 rounded-md px-3 py-2 text-sm"
+  >
+    <option value="">All Branches</option>
+  </select>
+</div>
+
 
           <select class="col-span-1 border border-gray-300 rounded-md px-3 py-2 text-sm">
             <option>Select Type</option>
