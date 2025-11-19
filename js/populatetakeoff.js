@@ -891,68 +891,115 @@ function updateProgressUI(current, total, skuCurrent, skuTotal, startTime) {
 // MAIN BUTTON HANDLER
 // ------------------------------------------------------------
 document.addEventListener("DOMContentLoaded", () => {
+
     const updateBtn = document.querySelector("#update-pricing-btn");
     if (!updateBtn) return;
 
-updateBtn.addEventListener("click", async () => {
-    const selected = getSelectedTakeoffs();
-    if (!selected.length) {
-        alert("❗ Select at least one takeoff first.");
-        return;
-    }
+    updateBtn.addEventListener("click", async () => {
 
-    // Show progress modal
-    showProgressModal();
+        const selected = getSelectedTakeoffs();
+        if (!selected.length) {
+            alert("❗ Select at least one takeoff first.");
+            return;
+        }
 
-    const priceMap = await loadSkuPricingFromExcel();
-    if (!priceMap) {
+        // ------------------------------
+        // Show progress modal
+        // ------------------------------
+        showProgressModal();
+
+        // Load pricing from Google Sheet (CSV)
+        const priceMap = await loadSkuPricingFromExcel();
+        if (!priceMap) {
+            hideProgressModal();
+            alert("❌ Could not load live pricing sheet.");
+            return;
+        }
+
+        console.log("📘 Loaded live pricing map:", priceMap);
+
+        let startTime = Date.now();
+
+        // ---------------------------------------------------
+        // PROCESS EACH SELECTED TAKEOFF ONE BY ONE
+        // ---------------------------------------------------
+        for (let i = 0; i < selected.length; i++) {
+
+            const recordId = selected[i];
+
+            // UI progress update
+            updateProgressUI(i + 1, selected.length, 0, 0, startTime);
+
+            // Fetch the takeoff's data
+            const existing = await fetchTakeoffJson(recordId);
+            if (!existing) {
+                console.warn(`⚠️ Could not fetch takeoff ${recordId}`);
+                continue;
+            }
+
+            const fields = existing.fields;
+            const takeoffName = fields["Takeoff Name"] || "Untitled Takeoff";
+
+            let importedJson = [];
+            try {
+                importedJson = JSON.parse(fields["Imported JSON"] || "[]");
+            } catch (err) {
+                console.error("❌ JSON parse error:", err);
+                continue;
+            }
+
+            // SKU progress inside JSON
+            const skuTotal = importedJson.length;
+
+            // Update pricing inside each row
+          const updatedJson = updateJsonPricing(importedJson, priceMap);
+
+// --- NEW SAFE GUARD ---
+if (!updatedJson || !Array.isArray(updatedJson)) {
+    console.warn(`⚠ updateJsonPricing() returned null for ${takeoffName} — skipping revision.`);
+    continue;
+}
+// ------------------------
+
+const changesDetected = updatedJson.some(item => item.__priceChanged === true);
+
+if (!changesDetected) {
+    console.log(`📭 No pricing differences for ${takeoffName} — no revision created.`);
+    continue;
+}
+
+
+            // ------------------------------------------------------------------
+            // If changes WERE detected → CREATE NEW REVISION RECORD
+            // ------------------------------------------------------------------
+            const oldRevision = Number(fields.Revision || 0);
+            const newRevision = oldRevision + 1;
+
+            console.log(
+                `💾 Creating revision ${newRevision} for takeoff ${takeoffName}`
+            );
+
+            await createNewRevision(existing, updatedJson, newRevision);
+
+            // Update progress UI (SKUs)
+            for (let s = 0; s < skuTotal; s++) {
+                updateProgressUI(
+                    i + 1,
+                    selected.length,
+                    s + 1,
+                    skuTotal,
+                    startTime
+                );
+            }
+        }
+
+        // All takeoffs done
         hideProgressModal();
-        alert("❗ Could not load SKU price sheet.");
-        return;
-    }
-
-    let startTime = Date.now();
-
-    for (let i = 0; i < selected.length; i++) {
-        const recordId = selected[i];
-
-        // UI Progress Update
-        updateProgressUI(i + 1, selected.length, 0, 0, startTime);
-
-        const existing = await fetchTakeoffJson(recordId);
-        if (!existing) continue;
-
-        const fields = existing.fields;
-        let importedJson = [];
-        
-
-        try {
-            importedJson = JSON.parse(fields["Imported JSON"]);
-        } catch (e) {
-            console.error("⚠️ JSON Parse Error:", e);
-            continue;
-        }
-
-        // SKU progress inside JSON
-        for (let s = 0; s < importedJson.length; s++) {
-            updateProgressUI(i + 1, selected.length, s + 1, importedJson.length, startTime);
-        }
-
-        const updatedJson = updateJsonPricing(importedJson, priceMap);
-        if (!updatedJson) continue;
-
-        const oldRevision = Number(fields.Revision || 0);
-        const newRevision = oldRevision + 1;
-
-        await createNewRevision(existing, updatedJson, newRevision);
-    }
-
-    hideProgressModal();
-    alert("✅ Pricing updated & revisions created.");
-    location.reload();
+        alert("✅ Pricing updated and revisions created successfully.");
+        location.reload();
+    });
 });
 
-});
 function groupRevisions(records) {
     const groups = {};
 
