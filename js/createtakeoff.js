@@ -899,6 +899,7 @@ async function doesTakeoffAlreadyExist(takeoffName) {
 
     return data.records && data.records.length > 0;
 }
+
 async function saveTakeoff() {
     console.log("💾 Saving Takeoff…");
 
@@ -1028,6 +1029,8 @@ console.log("🔢 Next Revision:", revision);
         }
 
         alert("Takeoff saved successfully!");
+console.log("Saved takeoff");
+await patchLoginHistory("Takeoff Saved", name);
 
     } catch (err) {
         console.error("❌ Save error:", err);

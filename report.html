@@ -34,18 +34,28 @@
     </style>
   </head>
 
-  <body class="min-h-screen flex flex-col">
-    <!-- Top Navigation -->
-    <header class="w-full bg-white shadow-sm">
-      <div class="mx-auto max-w-7xl px-4 py-4 flex items-center justify-between">
-        <h1 class="text-xl font-bold">Volcano Reports</h1>
-        <nav>
-          <a href="index.html" class="text-sm text-gray-600 hover:underline">Index</a>
-          <span class="mx-2 text-gray-500">|</span>
-          <a href="Takeoff.html" class="text-sm text-blue-600 font-semibold">Reports</a>
-        </nav>
-      </div>
-    </header>
+<header class="w-full bg-white shadow-sm">
+  <div class="mx-auto max-w-7xl px-4 py-4 flex items-center justify-between">
+
+    <h1 class="text-xl font-bold">Volcano Reports</h1>
+
+    <div class="flex items-center space-x-4">
+      <a href="index.html" class="text-sm text-gray-600 hover:underline">Index</a>
+      <span class="text-gray-400">|</span>
+      <a href="Takeoff.html" class="text-sm text-gray-600 hover:underline">Reports</a>
+
+      <!-- 🔥 Logout Button -->
+      <button
+        id="logout-btn"
+        class="text-sm text-red-600 font-semibold hover:underline"
+      >
+        Logout
+      </button>
+    </div>
+
+  </div>
+</header>
+
 
     <!-- MAIN BODY -->
     <main class="mx-auto w-full max-w-7xl px-4 py-6 space-y-8">
@@ -72,16 +82,24 @@
         </div>
       </section>
 
-      <!-- TYPE PIE CHART -->
-      <section class="bg-white border border-gray-200 rounded-lg p-4">
-        <h2 class="text-sm font-semibold text-gray-600 mb-4">Takeoff Type Distribution</h2>
-<canvas id="type-chart" style="height:150px !important;"></canvas>
-      </section>
+     <!-- TYPE PIE CHART -->
+<section class="bg-white border border-gray-200 rounded-lg p-4">
+  <h2 class="text-sm font-semibold text-gray-600 mb-4">Takeoff Type Distribution</h2>
+  <canvas id="type-chart" style="height:150px !important;"></canvas>
+</section>
+
+<!-- ESTIMATOR BAR CHART -->
 <section class="bg-white border border-gray-200 rounded-lg p-4">
   <h2 class="text-sm font-semibold text-gray-600 mb-4">Takeoffs by Estimator</h2>
-  <canvas id="estimator-chart" class="w-full h-48"></canvas>
+  <canvas id="estimator-chart" style="height:150px !important;"></canvas>
 </section>
-<canvas id="builder-chart" style="height:120px;"></canvas>
+
+<!-- BUILDER BAR CHART -->
+<section class="bg-white border border-gray-200 rounded-lg p-4">
+  <h2 class="text-sm font-semibold text-gray-600 mb-4">Takeoffs by Builder</h2>
+  <canvas id="builder-chart" style="height:150px !important;"></canvas>
+</section>
+
 
       <!-- FILTER SECTION -->
       <section class="bg-white border border-gray-200 rounded-lg p-4">

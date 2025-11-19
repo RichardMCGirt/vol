@@ -87,3 +87,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   console.log(`✅ Active page: ${current}`);
 });
+document.getElementById("logout-btn").addEventListener("click", async () => {
+    await logActivity("Logout");
+    localStorage.clear();
+    window.location.href = "login.html";
+});

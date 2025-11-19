@@ -239,7 +239,6 @@ console.log("📌 FINAL TAKEOFF NAME:", takeoffName);
 //--------------------------------------
 await uploadRow({
   fields: {
-    "Plan name": takeoffName,
     "Takeoff Name": takeoffName,
     "Estimator": estimatorId ? [estimatorId] : [],
     "Imported JSON": JSON.stringify(parsedRows)
@@ -359,4 +358,52 @@ async function uploadRow(payload) {
   }
 
   console.log("✅ Row uploaded successfully");
+  await logTakeoffImportActivity(payload.fields["Takeoff Name"]);
+
+  async function logTakeoffImportActivity(takeoffName) {
+  const userRecordId = localStorage.getItem("userRecordId");
+  if (!userRecordId) {
+    console.warn("⚠ No userRecordId found — cannot log activity");
+    return;
+  }
+
+  const timestamp = new Date().toISOString();
+
+  // 1. GET existing login history (timestamps only)
+  const getUrl = `https://api.airtable.com/v0/appnZNCcUAJCjGp7L/tblfSrIrImd28RpAD/${userRecordId}`;
+  const res = await fetch(getUrl, {
+    headers: { Authorization: `Bearer ${EAIRTABLE_API_KEY}` }
+  });
+
+  const data = await res.json();
+  let history = [];
+
+  try {
+    history = JSON.parse(data.fields["Login History"] || "[]");
+  } catch (e) {
+    history = [];
+  }
+
+  // 2. Push new timestamp entry
+  history.push(timestamp);
+
+  // 3. PATCH update back to Airtable
+  const patchUrl = `https://api.airtable.com/v0/appnZNCcUAJCjGp7L/tblfSrIrImd28RpAD/${userRecordId}`;
+
+  await fetch(patchUrl, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${EAIRTABLE_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      fields: {
+        "Login History": JSON.stringify(history)
+      }
+    })
+  });
+
+  console.log("📝 Logged Takeoff Import Activity:", timestamp);
+}
+
 }

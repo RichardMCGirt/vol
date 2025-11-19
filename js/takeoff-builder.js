@@ -283,37 +283,77 @@ function createInlineInput(selectEl, placeholder, onSubmit) {
 }
 
 // Plan selector behavior
-planSelect.addEventListener("change", () => {
+// Plan selector behavior + activity logging
+planSelect.addEventListener("change", async () => {
+
+  // CASE 1 — User chooses "__new__"
   if (planSelect.value === "__new__") {
     const newPlan = prompt("Enter new Plan name:");
     if (newPlan && newPlan.trim()) {
+      const clean = newPlan.trim();
+
       const opt = document.createElement("option");
-      opt.value = newPlan.trim();
-      opt.textContent = newPlan.trim();
+      opt.value = clean;
+      opt.textContent = clean;
+
       planSelect.insertBefore(opt, planSelect.lastElementChild);
-      planSelect.value = newPlan.trim();
-      console.log("🆕 Added new plan:", newPlan.trim());
+      planSelect.value = clean;
+
+      console.log("🆕 Added new plan:", clean);
+
+      // 🟢 Log new plan added
+      await logActivity("Plan Added", clean);
+
     } else {
       planSelect.value = "";
     }
+    return;
   }
+
+  // CASE 2 — Normal change
+  const val = planSelect.value;
+  console.log("📄 Plan changed to:", val);
+
+  // 🟢 Log plan updated
+  await logActivity("Plan Updated", val);
 });
 
-elevationSelect.addEventListener("change", () => {
+
+// Elevation selector behavior + activity logging
+elevationSelect.addEventListener("change", async () => {
+
+  // CASE 1 — Adding a new elevation
   if (elevationSelect.value === "__new__") {
-    const newElevation = prompt("Enter new Elevation name:");
-    if (newElevation && newElevation.trim()) {
+    const newEle = prompt("Enter new Elevation name:");
+    if (newEle && newEle.trim()) {
+      const clean = newEle.trim();
+
       const opt = document.createElement("option");
-      opt.value = newElevation.trim();
-      opt.textContent = newElevation.trim();
+      opt.value = clean;
+      opt.textContent = clean;
+
       elevationSelect.insertBefore(opt, elevationSelect.lastElementChild);
-      elevationSelect.value = newElevation.trim();
-      console.log("🆕 Added new elevation:", newElevation.trim());
+      elevationSelect.value = clean;
+
+      console.log("🆕 Added new elevation:", clean);
+
+      // 🟢 Activity log
+      await logActivity("Elevation Added", clean);
+
     } else {
       elevationSelect.value = "";
     }
+    return;
   }
+
+  // CASE 2 — Normal elevation changed
+  const val = elevationSelect.value;
+  console.log("📄 Elevation changed to:", val);
+
+  // 🟢 Log update
+  await logActivity("Elevation Updated", val);
 });
+
 
 
 
