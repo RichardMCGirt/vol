@@ -13,7 +13,6 @@ const AIRTABLE_API_KEY2 =
 const BASE_ID2 = "appnZNCcUAJCjGp7L";
 const TAKEOFFS_TABLE_ID2 = "tblZpnyqHJeC1IaZq";
 const SKU_TABLE_ID2 = "tblZpnyqHJeC1IaZq"; // JSON table
-const estimator = document.getElementById("estimator-select")?.value.trim() || "";
 let estimatorLookup = {};
 let estimatorList = [];
 
@@ -21,7 +20,6 @@ const ESTIMATOR_TABLE_ID = "tbl1ymzV1CYldIGJU";
 window.skuData = [];
 let builderLookup = {};  
 document.getElementById("manual-save-btn").addEventListener("click", saveTakeoff);
-let estimatorId = "";
 // ==========================================================
 // MAIN APP INITIALIZATION
 // ==========================================================
@@ -579,6 +577,9 @@ function updateGrandTotal() {
 async function loadExistingTakeoff(recordId) {
     console.log("📥 Loading takeoff:", recordId);
 
+    // -----------------------------------------
+    // Fetch the Airtable Takeoff Record
+    // -----------------------------------------
     const res = await fetch(
         `https://api.airtable.com/v0/${BASE_ID2}/${TAKEOFFS_TABLE_ID2}/${recordId}`,
         { headers: { Authorization: `Bearer ${AIRTABLE_API_KEY2}` } }
@@ -587,67 +588,87 @@ async function loadExistingTakeoff(recordId) {
     const data = await res.json();
     const f = data.fields;
 
-    // -----------------------------
-    // ⭐ FILL HEADER FIELDS
-    // -----------------------------
+    // Guard
+    if (!f) {
+        console.error("❌ No fields returned for this record:", data);
+        return;
+    }
+
+    // -----------------------------------------
+    // ⭐ HEADER FIELDS
+    // -----------------------------------------
     document.getElementById("nameInput").value =
         f["Takeoff Name"] || "";
 
+    // ⭐ Single Select → Takeoff Type
     document.getElementById("takeoff-type").value =
         f["Type"] || "";
 
-    // ⭐ Builder (linked record)
+    // -----------------------------------------
+    // ⭐ Builder (Linked Record)
+    // -----------------------------------------
     if (Array.isArray(f["Builder"]) && f["Builder"].length > 0) {
         document.getElementById("builder-select").value = f["Builder"][0];
+    } else {
+        console.warn("⚠️ No Builder linked");
     }
 
-    // ⭐ Plan (text or single select)
+    // -----------------------------------------
+    // ⭐ Plan (Text or Single Select)
+    // -----------------------------------------
     if (f["Plan"]) {
         document.getElementById("plan-select").value = f["Plan"];
     }
 
-    // ⭐ Elevation (text or single select)
+    // -----------------------------------------
+    // ⭐ Elevation
+    // -----------------------------------------
     if (f["Elevation"]) {
         document.getElementById("elevation-select").value = f["Elevation"];
     }
 
-    // ⭐ Community (linked record)
+    // -----------------------------------------
+    // ⭐ Community (Linked Record)
+    // -----------------------------------------
     if (Array.isArray(f["Community"]) && f["Community"].length > 0) {
         document.getElementById("community-select").value = f["Community"][0];
+    } else {
+        console.warn("⚠️ No Community linked");
     }
 
-    // -----------------------------
-    // ⭐ SET ESTIMATOR (linked)
-    // -----------------------------
+    // -----------------------------------------
+    // ⭐ Estimator (Linked Record)
+    // -----------------------------------------
     const estSelect = document.getElementById("estimator-select");
 
     if (Array.isArray(f["Estimator"]) && f["Estimator"].length > 0) {
         estSelect.value = f["Estimator"][0];
         console.log("📌 Loaded Estimator:", f["Estimator"][0]);
     } else {
-        console.log("⚠️ No Estimator linked on this record.");
+        console.log("⚠️ No Estimator found on record");
     }
 
-    // -----------------------------
-    // Show line items section
-    // -----------------------------
+    // -----------------------------------------
+    // Show the Line Items Section
+    // -----------------------------------------
     revealLineItemsSection();
 
-    // -----------------------------
-    // ⭐ Load JSON Line Items
-    // -----------------------------
-    const rawJson = f["Imported JSON"] || "[]";
+    // -----------------------------------------
+    // ⭐ Load Imported JSON into Table
+    // -----------------------------------------
     let parsed = [];
+    const rawJson = f["Imported JSON"] || "[]";
 
     try {
         parsed = JSON.parse(rawJson);
     } catch (err) {
-        console.error("❌ Invalid JSON:", err, rawJson);
+        console.error("❌ JSON parse failed:", err, rawJson);
         parsed = [];
     }
 
     loadJsonIntoTable(parsed);
 }
+
 
 
 function loadJsonIntoTable(rows) {
@@ -893,21 +914,14 @@ async function saveTakeoff() {
     const name = document.getElementById("nameInput")?.value.trim() || "";
 const takeoffName = document.getElementById("nameInput")?.value.trim() || "";
 const estimatorSelect = document.getElementById("estimator-select");
-const estimatorId = estimatorSelect.value;
+let estimatorId = estimatorSelect.value;
 const takeoffType = document.getElementById("takeoff-type")?.value || "";
-
-// ONLY allow linked record selection
-if (estimatorId) {
-    payload.fields["Estimator"] = [estimatorId];  // Linked record array
-} else {
-    // No custom text allowed because this is a linked record field
-    payload.fields["Estimator"] = []; 
-}
+// Final Estimator for saving
+const finalEstimator = estimatorId ? [estimatorId] : [];
 
     // --------------------------------------------
     // prevent overwrite — check Takeoff Name
     // --------------------------------------------
-// 🔥 Prevent overwrite — check Takeoff Name ONLY
 if (await doesTakeoffAlreadyExist(takeoffName)) {
     isEdit = false;
     recordId = null;
@@ -963,14 +977,20 @@ console.log("🔢 Next Revision:", revision);
     // ------------------------------
     // Fields to save
     // ------------------------------
-    const fields = {
-        "Takeoff Name": name,
-        "Imported JSON": JSON.stringify(updatedJson),
-        "Revision #": revision,
-        "Estimator": estimatorId ? [estimatorId] : [],
-    "Type": takeoffType || null  
+ const fields = {
+    "Takeoff Name": name,
+    "Imported JSON": JSON.stringify(updatedJson),
+    "Revision #": revision,
+    "Estimator": finalEstimator,
+    "Type": takeoffType || null,
 
-    };
+    // NEW FIELDS (from screenshot)
+    "Builder": builderSelect.value ? [builderSelect.value] : [],
+"Community": communitySelect.value || "",
+    "Elevations": elevationSelect.value || "",
+    "Plans": planSelect.value || ""
+};
+
 
     console.log("📤 Fields to save:", fields);
 
