@@ -1,3 +1,6 @@
+import { logActivity } from "./activity-logger.js";
+
+
 // nav.js (Improved)
 document.addEventListener("DOMContentLoaded", () => {
   console.log("🧭 Navigation script loaded");
@@ -87,8 +90,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
   console.log(`✅ Active page: ${current}`);
 });
-document.getElementById("logout-btn").addEventListener("click", async () => {
-    await logActivity("Logout");
-    localStorage.clear();
-    window.location.href = "login.html";
+document.addEventListener("DOMContentLoaded", () => {
+
+  const logoutBtn = document.getElementById("logout-btn");
+
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", async () => {
+      console.log("🚪 Logging out…");
+
+      // 🔥 NEW logger format (stores objects)
+      await logActivity({
+        type: "Logout",
+        action: "Logout",
+        details: "",
+      });
+
+      localStorage.clear();
+      window.location.href = "login.html";
+    });
+  }
+
 });

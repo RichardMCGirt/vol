@@ -458,43 +458,6 @@ function countTakeoffsByPlan(records) {
   return counts;
 }
 
-// ------------------------- RENDER PAGINATED TABLE -------------------------
-function groupRevisions(records) {
-    const groups = {};
-
-    records.forEach(rec => {
-        const f = rec.fields;
-
-        // Choose the stable consistent key
-        const groupKey =
-            f["Takeoff Name"] ||
-            f["Plan Name"] ||
-            f["Takeoff Creation"] ||
-            f["Takeoff Creation 2"] ||
-            "Untitled";
-
-        if (!groups[groupKey]) {
-            groups[groupKey] = {
-                name: groupKey,
-                revisions: [],
-                latest: null
-            };
-        }
-
-        groups[groupKey].revisions.push(rec);
-    });
-
-    // Sort revisions & pick latest
-    Object.values(groups).forEach(group => {
-        group.revisions.sort((a, b) =>
-            (b.fields["Revision #"] || 0) - (a.fields["Revision #"] || 0)
-        );
-        group.latest = group.revisions[0];
-    });
-
-    return Object.values(groups);
-}
-
 // Linked fields are arrays → convert safely to text
 function safeLinked(field) {
     if (!field) return "—";
@@ -527,7 +490,6 @@ console.log("Fetching estimators…");
         estimatorLookup[rec.id] = fullName;
     });
 
-    console.log(`🧑‍💼 Loaded ${records.length} estimators`);
 }
 
 function renderGroupedRow(group) {
@@ -564,9 +526,7 @@ const estimator = f.Estimator && f.Estimator.length > 0
     const elevations = f.Elevations || "";
     const skuCount = getSkuCountFromTakeoffFields(f);
     const latest = rec === group.latest;
-console.log("Estimator field raw:", f.Estimator);
-console.log("Estimator Lookup:", estimatorLookup);
-console.log("Lookup key exists:", estimatorLookup["recVcMWwBioH0fCFG"]);
+
 
     html += `
         <div class="flex items-center gap-4 py-2">
@@ -626,8 +586,6 @@ function enableRevisionToggles() {
         });
     });
 }
-
-
 
 function renderPaginatedTable() {
     // 1. Apply filters to ALL takeoff records
@@ -690,7 +648,6 @@ function renderPaginatedTable() {
         revisionGroups.filter(g => g.latest.fields["Status"] === "Draft").length;
 }
 
-
 function enableGroupToggles() {
   document.querySelectorAll("[data-group]").forEach(header => {
     header.addEventListener("click", () => {
@@ -701,7 +658,6 @@ function enableGroupToggles() {
     });
   });
 }
-
 
 // ------------------------- MAIN RENDER FUNCTION -------------------------
 async function populateTakeoffTable() {
@@ -715,20 +671,8 @@ async function populateTakeoffTable() {
 
   currentPage = 1;  // reset to first page
   renderPaginatedTable();
-
-  console.log("✅ Takeoff table populated with pagination");
 }
-// ------------------------- GROUP TOGGLE INTERACTION -------------------------
-function enableGroupToggles() {
-  document.querySelectorAll("[data-group]").forEach(header => {
-    header.addEventListener("click", () => {
-      const group = header.getAttribute("data-group");
-      const rows = document.querySelectorAll(`.group-${group}`);
 
-      rows.forEach(r => r.classList.toggle("hidden"));
-    });
-  });
-}
 function getSkuCountFromTakeoffFields(fields) {
   // Try a few likely field names
   let raw = fields["Imported JSON"] 
@@ -838,8 +782,7 @@ async function loadSkuPricingFromExcel() {
       "https://docs.google.com/spreadsheets/d/1E3sRhqKfzxwuN6VOmjI2vjWsk_1QALEKkX7mNXzlVH8/gviz/tq?tqx=out:csv";
 
     try {
-        console.log("📡 Fetching live Google Sheet CSV…");
-
+    
         const response = await fetch(url, { cache: "no-cache" });
 
         if (!response.ok) {
@@ -856,8 +799,6 @@ async function loadSkuPricingFromExcel() {
             skipEmptyLines: true
         }).data;
 
-        console.log("📦 Parsed CSV Rows:", rows);
-
         // Build price map: SKU → { vendor, price }
         const priceMap = {};
 
@@ -873,8 +814,6 @@ async function loadSkuPricingFromExcel() {
                 price
             };
         });
-
-        console.log("📘 Final Price Map:", priceMap);
         return priceMap;
 
     } catch (err) {
@@ -934,8 +873,6 @@ async function createNewRevision(oldRecord, newJson, newRevision) {
     });
 
     const data = await res.json();
-    console.log("➕ Created new revision:", data);
-
     return data;
 }
 
@@ -976,7 +913,6 @@ function updateJsonPricing(importedJson, priceMap) {
 
     return anyChange ? importedJson : null;
 }
-
 
 // ===================== PROGRESS MODAL CONTROL =====================
 function showProgressModal() {
@@ -1040,9 +976,6 @@ document.addEventListener("DOMContentLoaded", () => {
             alert("❌ Could not load live pricing sheet.");
             return;
         }
-
-        console.log("📘 Loaded live pricing map:", priceMap);
-
         let startTime = Date.now();
 
         // ---------------------------------------------------

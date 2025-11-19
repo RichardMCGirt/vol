@@ -1,3 +1,6 @@
+import { logActivity } from "./activity-logger.js";
+
+
 document.addEventListener("DOMContentLoaded", () => {
   console.log("🚀 Login script initialized.");
 
@@ -100,36 +103,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
         console.log("💾 Session stored → redirecting...");
         // ------------------------------
-// Save Login Timestamp to Airtable
-// ------------------------------
-const loginTimestamp = new Date().toISOString();
-
-let loginHistory = [];
-try {
-  loginHistory = user["Login History"] ? JSON.parse(user["Login History"]) : [];
-} catch (e) {
-  console.warn("⚠️ Could not parse existing Login History.");
-}
-
-loginHistory.push(loginTimestamp);
-
-await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}/${record.id}`, {
-  method: "PATCH",
-  headers: {
-    Authorization: `Bearer ${AIRTABLE_API_KEY}`,
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({
-    fields: {
-      "Last Login": loginTimestamp,
-      "Login History": JSON.stringify(loginHistory)
-    }
-  }),
+// ---------------------------------------------
+// NEW: Log Login Event Using activity-logger.js
+// ---------------------------------------------
+await logActivity({
+  type: "Login"
 });
 
-console.log("📝 Login timestamp saved to Airtable:", loginTimestamp);
+console.log("📝 Login event logged to Airtable.");
 
-console.log("⏳ Waiting 3 seconds before redirect so you can read patch logs...");
 
 setTimeout(() => {
   window.location.href = "index.html";

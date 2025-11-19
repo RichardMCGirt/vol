@@ -1,16 +1,11 @@
 // auth.js
 document.addEventListener("DOMContentLoaded", () => {
-  console.log("🛡️ Auth check initialized...");
 
   const currentPage = window.location.pathname.split("/").pop().toLowerCase();
   const loggedInUser = localStorage.getItem("loggedInUser");
 
-  console.log("📄 Current page:", currentPage);
-  console.log("👤 Logged-in user:", loggedInUser || "[none]");
-
   // Skip redirect logic on login page
   if (currentPage === "login.html") {
-    console.log("🟢 On login page, skipping auth redirect check.");
     return;
   }
 
@@ -33,5 +28,4 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  console.log("✅ Auth check passed. Session active.");
 });

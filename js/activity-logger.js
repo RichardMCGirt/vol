@@ -1,75 +1,89 @@
-// ===============================
-// UNIVERSAL ACTIVITY LOGGER
-// Stores activity inside the user's "Login History" JSON field
-// Table: tblfSrIrImd28RpAD
-// ===============================
+//----------------------------------------------
+// ⭐ UNIVERSAL ACTIVITY LOGGER
+// Stores activity objects inside Login History
+//----------------------------------------------
 
-// 🔑 Your Users Base
-const USERS_BASE = "appnZNCcUAJCjGp7L";   // stays the same unless you tell me otherwise
-const USERS_TABLE = "tblfSrIrImd28RpAD";  // ✅ updated
-const USERS_KEY = "patxrKdNvMqOO43x4.274bd66bb800bb57cd8b22fe56831958ac0e8d79666cc5e4496013246c33a2f3"; // Your key
+export async function logActivity(eventData = {}) {
+  try {
+    const userRecordId = localStorage.getItem("userRecordId");
+    const userName = localStorage.getItem("loggedInUserName") || "";
+    const userEmail = localStorage.getItem("loggedInUser") || "";
 
-// Fetch Airtable record for logged-in user
-async function getUserRecord(email) {
-    const formula = encodeURIComponent(`{Email} = "${email}"`);
-    const url = `https://api.airtable.com/v0/${USERS_BASE}/${USERS_TABLE}?filterByFormula=${formula}`;
-
-    const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${USERS_KEY}` }
-    });
-
-    const json = await res.json();
-    return json.records?.[0] || null;
-}
-
-// Append an event into Login History JSON
-async function trackActivity(action, details = "") {
-    const email = localStorage.getItem("loggedInEmail");
-    if (!email) {
-        console.warn("⚠ No logged in user found in localStorage.");
-        return;
+    if (!userRecordId) {
+      console.warn("⚠ Cannot log activity — no userRecordId found in localStorage");
+      return;
     }
 
-    // 1. Get Airtable user row
-    const userRecord = await getUserRecord(email);
-    if (!userRecord) {
-        console.error("❌ Airtable user not found for:", email);
-        return;
-    }
+    // Airtable config
+    const AIRTABLE_API_KEY = "patxrKdNvMqOO43x4.274bd66bb800bb57cd8b22fe56831958ac0e8d79666cc5e4496013246c33a2f3";
+    const BASE_ID = "appnZNCcUAJCjGp7L";
+    const TABLE_ID = "tblfSrIrImd28RpAD";
 
-    // 2. Load existing JSON or empty
-    let history = [];
-    try {
-        history = JSON.parse(userRecord.fields["Login History"] || "[]");
-    } catch {
-        history = [];
-    }
+    //-----------------------------------------------------
+    // 🔹 Build new activity event object
+    //-----------------------------------------------------
+    const timestamp = new Date().toISOString();
 
-    // 3. Create event
-    const event = {
-        action,
-        details,
-        timestamp: new Date().toISOString()
+    const activityEvent = {
+      type: eventData.type || "Unknown",
+      timestamp,
+      user: userName,
+      email: userEmail,
+      details: eventData.details || "",
+      takeoffName: eventData.takeoffName || "",
+      builder: eventData.builder || "",
+      community: eventData.community || "",
+      newValue: eventData.newValue || "",
+      lineItems: eventData.lineItems || null
     };
 
-    history.push(event);
+    //-----------------------------------------------------
+    // 1. Read existing Login History
+    //-----------------------------------------------------
+    const fetchURL = `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}/${userRecordId}`;
+    const res = await fetch(fetchURL, {
+      headers: { Authorization: `Bearer ${AIRTABLE_API_KEY}` }
+    });
 
-    // 4. Save JSON back to Airtable
-    await fetch(
-        `https://api.airtable.com/v0/${USERS_BASE}/${USERS_TABLE}/${userRecord.id}`,
-        {
-            method: "PATCH",
-            headers: {
-                Authorization: `Bearer ${USERS_KEY}`,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                fields: {
-                    "Login History": JSON.stringify(history)
-                }
-            })
+    const data = await res.json();
+    let history = [];
+
+    try {
+      if (data.fields["Login History"]) {
+        history = JSON.parse(data.fields["Login History"]);
+        if (!Array.isArray(history)) history = [];
+      }
+    } catch (e) {
+      console.error("❌ Failed parsing existing Login History:", e);
+      history = [];
+    }
+
+    //-----------------------------------------------------
+    // 2. Add new event to array
+    //-----------------------------------------------------
+    history.push(activityEvent);
+
+    //-----------------------------------------------------
+    // 3. PATCH back to Airtable
+    //-----------------------------------------------------
+    const patchURL = `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}/${userRecordId}`;
+
+    await fetch(patchURL, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${AIRTABLE_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        fields: {
+          "Login History": JSON.stringify(history)
         }
-    );
+      })
+    });
 
-    console.log("⭐ Activity Saved:", event);
+    console.log("📝 Activity Logged:", activityEvent);
+
+  } catch (err) {
+    console.error("❌ logActivity ERROR:", err);
+  }
 }

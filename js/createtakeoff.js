@@ -1,6 +1,5 @@
-// ==========================================================
-// createtakeoff.js  (FINAL STABLE VERSION)
-// ==========================================================
+import { logActivity } from "./activity-logger.js";
+
 
 // Google Sheet CSV for SKU master data
 const TAKEOFF_SHEET_URL =
@@ -669,8 +668,6 @@ async function loadExistingTakeoff(recordId) {
     loadJsonIntoTable(parsed);
 }
 
-
-
 function loadJsonIntoTable(rows) {
     const tbody = document.getElementById("line-item-body");
     tbody.innerHTML = ""; // clear old rows
@@ -706,29 +703,7 @@ function loadJsonIntoTable(rows) {
 
     updateGrandTotal();
 }
-
 });
-
-function getItemsForSave() {
-    const rows = [...document.querySelectorAll("#line-item-body tr")];
-
-    const items = rows.map(row => normalizeRow({
-        SKU: row.querySelector(".sku-input").value,
-        Description: row.querySelector(".desc-input").value,
-        UOM: row.querySelector(".uom-input").value,
-        "Material Type": row.querySelector(".mat-input").value,
-        "Color Group": row.querySelector(".color-input").value,
-        Vendor: row.querySelector(".vendor-input").value,
-        QTY: Number(row.querySelector(".qty-input").value || 0),
-        "Unit Cost": Number(row.querySelector(".cost-input").value || 0),
-        "UOM Mult": Number(row.querySelector(".mult-input").value || 1),
-        "Ext. Cost": Number(row.querySelector(".extcost-input").value || 0),
-        "%": Number(row.querySelector(".percent-input").value || 0),
-        Total: Number(row.querySelector(".total-input").value || 0),
-    }));
-
-    return items;
-}
 
 async function getNextRevision(takeoffName) {
     const url = `https://api.airtable.com/v0/${BASE_ID2}/${TAKEOFFS_TABLE_ID2}?filterByFormula=${encodeURIComponent(
@@ -751,137 +726,6 @@ async function getNextRevision(takeoffName) {
     });
 
     return maxRev + 1;
-}
-
-
-
-function collectAllSkuRows() {
-  const rows = document.querySelectorAll("#line-item-body tr");
-  const items = [];
-
-  rows.forEach(row => {
-    items.push({
-      SKU: row.querySelector(".sku-input")?.value || "",
-      Description: row.querySelector(".desc-input")?.value || "",
-      UOM: row.querySelector(".uom-input")?.value || "",
-      "Material Type": row.querySelector(".mat-input")?.value || "",
-      "Color Group": row.querySelector(".color-input")?.value || "",
-      Vendor: row.querySelector(".vendor-input")?.value || "",
-      Qty: Number(row.querySelector(".qty-input")?.value || 0),
-      "Unit Cost": Number(row.querySelector(".cost-input")?.value || 0),
-      "UOM Mult": Number(row.querySelector(".mult-input")?.value || 1),
-      "Ext. Cost": Number(row.querySelector(".extcost-input")?.value || 0),
-      "%": Number(row.querySelector(".percent-input")?.value || 0),
-      Total: Number(row.querySelector(".total-input")?.value || 0)
-    });
-  });
-
-  return items;
-}
-
-
-async function patchLiftOffChanges(recordId, changes) {
-    try {
-        const url = `https://vanirlive.lbmlo.live/f5api/updateTakeoff`;
-        
-        const res = await fetch(url, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "x-api-key": "bP1HdvmaE9mYEtjDeYYA737bypiNX5ZM"
-            },
-            body: JSON.stringify({
-                recordId: recordId,
-                changes: changes
-            })
-        });
-
-        const data = await res.json();
-        console.log("📤 LiftOff PATCH response:", data);
-    } 
-    catch (err) {
-        console.error("❌ LiftOff PATCH failed:", err);
-    }
-}
-
-// ==========================================================
-// FINAL SAVE TAKEOFF (Correct Qty + JSON + Header)
-// ==========================================================
-
-function attachRowListeners(row) {
-    const qtyInput = row.querySelector(".qty-input");
-    const vendorInput = row.querySelector(".vendor-input");
-
-    // Initialize originals if missing
-    if (!row.dataset.originalQty) row.dataset.originalQty = qtyInput.value;
-    if (!row.dataset.originalVendor) row.dataset.originalVendor = vendorInput.value;
-
-    // When user changes QTY
-    qtyInput.addEventListener("input", () => {
-        console.log("✏️ Qty edited", qtyInput.value);
-    });
-
-    // When user changes Vendor
-    vendorInput.addEventListener("input", () => {
-        console.log("✏️ Vendor edited", vendorInput.value);
-    });
-}
-
-async function loadEstimators() {
-    const url = `https://api.airtable.com/v0/${BASE_ID2}/tbl1ymzV1CYldIGJU?fields[]=Full%20Name`;
-
-    const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${AIRTABLE_API_KEY2}` }
-    });
-
-    const json = await res.json();
-
-    const estDrop = document.getElementById("estimator-select");
-    estDrop.innerHTML = `<option value="">Select Estimator</option>`;
-
-    json.records.forEach(rec => {
-        const opt = document.createElement("option");
-        opt.value = rec.id;                       // IMPORTANT: record ID!
-        opt.textContent = rec.fields["Full Name"];
-        estDrop.appendChild(opt);
-    });
-}
-
-// -----------------------------------------------------------
-// ⭐ FINAL FULL SAVE FUNCTION (Qty/Vendor patch + Revision #)
-// -----------------------------------------------------------
-
-function showToast(msg) {
-    const t = document.getElementById("toast");
-    if (!t) {
-        console.warn("⚠️ Toast element not found!");
-        return;
-    }
-
-    t.textContent = msg;
-    t.style.opacity = 1;
-
-    setTimeout(() => {
-        t.style.opacity = 0;
-    }, 2200);
-}
-// ------------------------------------------------------
-// CHECK IF Takeoff Name ALREADY EXISTS IN AIRTABLE
-// ------------------------------------------------------
-async function doesPlanAlreadyExist(takeoffName) {
-    if (!takeoffName) return false;
-
-    const url = `https://api.airtable.com/v0/${BASE_ID2}/${TAKEOFFS_TABLE_ID2}?filterByFormula=${encodeURIComponent(
-        `{Takeoff Name} = "${takeoffName}"`
-    )}`;
-
-    const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${AIRTABLE_API_KEY2}` }
-    });
-
-    const data = await res.json();
-
-    return data.records && data.records.length > 0;
 }
 
 async function doesTakeoffAlreadyExist(takeoffName) {
@@ -1018,19 +862,32 @@ console.log("🔢 Next Revision:", revision);
 
         console.log("📥 Airtable save response:", data);
 
-        if (!res.ok) {
-            console.error("❌ Save failed:", data);
-            alert("Save failed. See console.");
-            return;
-        }
+       if (!res.ok) {
+    console.error("❌ Save failed:", data);
+    alert("Save failed. See console.");
+    return;
+}
 
-        if (!isEdit && data.id) {
-            localStorage.setItem("editingTakeoffId", data.id);
-        }
+if (!isEdit && data.id) {
+    localStorage.setItem("editingTakeoffId", data.id);
+}
 
-        alert("Takeoff saved successfully!");
+// ------------------------------------------------------
+// 🔥 NEW — Log the Create/Update Activity
+// ------------------------------------------------------
+const builderName = builderSelect.options[builderSelect.selectedIndex]?.text || "";
+const finalName = name || takeoffName;
+
+await logActivity({
+    type: isEdit ? "Takeoff Update" : "Takeoff Create",
+    takeoffName: finalName,
+    builder: builderName,
+    revision: revision
+});
+
+// ------------------------------------------------------
+alert("Takeoff saved successfully!");
 console.log("Saved takeoff");
-await patchLoginHistory("Takeoff Saved", name);
 
     } catch (err) {
         console.error("❌ Save error:", err);
