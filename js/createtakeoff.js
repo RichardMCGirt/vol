@@ -14,7 +14,10 @@ const BASE_ID2 = "appnZNCcUAJCjGp7L";
 const TAKEOFFS_TABLE_ID2 = "tblZpnyqHJeC1IaZq";
 const SKU_TABLE_ID2 = "tblZpnyqHJeC1IaZq"; // JSON table
 const estimator = document.getElementById("estimator-select")?.value.trim() || "";
+let estimatorLookup = {};
+let estimatorList = [];
 
+const ESTIMATOR_TABLE_ID = "tbl1ymzV1CYldIGJU";
 window.skuData = [];
 let builderLookup = {};  
 document.getElementById("manual-save-btn").addEventListener("click", saveTakeoff);
@@ -23,23 +26,18 @@ let estimatorId = "";
 // MAIN APP INITIALIZATION
 // ==========================================================
 document.addEventListener("DOMContentLoaded", async () => {
+    await loadEstimators();  // ⭐
   console.log("🎬 Takeoff Creation Page Ready");
-    loadEstimatorsDropdown();
+    console.log("🎬 Takeoff Creation Page Ready");
 
   // DOM elements
-const nameInput = document.getElementById("nameInput");
-const typeSelect = document.getElementById("takeoff-type");
 const builderSelect = document.getElementById("builder-select");
 const planSelect = document.getElementById("plan-select");
 const elevationSelect = document.getElementById("elevation-select");
 const communitySelect = document.getElementById("community-select");
 
-
-  const placeholderBox = document.getElementById("placeholder-box");
-  const lineItemsSection = document.getElementById("line-items-section");
   const lineItemBody = document.getElementById("line-item-body");
   const addLineItemBtn = document.getElementById("add-line-item");
-document.addEventListener("DOMContentLoaded", loadEstimators);
 
   // MODE FLAGS
   let editingId = localStorage.getItem("editingTakeoffId");
@@ -76,81 +74,42 @@ elevationSelect.addEventListener("change", () => {
 
     setTimeout(() => loadExistingTakeoff(editingId), 900);
 }
-async function getEstimatorRecordIdByName(name) {
-    if (!name) return null;
+async function loadEstimators() {
+    let offset = null;
+    let all = [];
 
-    const url = `https://api.airtable.com/v0/${BASE_ID2}/tbl1ymzV1CYldIGJU?filterByFormula=${encodeURIComponent(
-        `{Full Name} = "${name}"`
-    )}`;
+    do {
+        const url = `https://api.airtable.com/v0/${BASE_ID}/${ESTIMATOR_TABLE_ID}?pageSize=100${offset ? "&offset="+offset : ""}`;
 
-    const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${AIRTABLE_API_KEY2}` }
+        const res = await fetch(url, {
+            headers: { Authorization: `Bearer ${AIRTABLE_API_KEY}` }
+        });
+
+        const data = await res.json();
+        all = all.concat(data.records);
+        offset = data.offset;
+
+    } while (offset);
+
+    estimatorList = all;
+
+    estimatorList.forEach(r => {
+        const fullName = r.fields["Full Name"] || "Unnamed";
+        estimatorLookup[r.id] = fullName;
     });
 
-    const json = await res.json();
-
-    if (!json.records.length) {
-        console.warn("⚠️ No estimator found for:", name);
-        return null;
-    }
-
-    return json.records[0].id; // EXACT match
+    console.log(`🧑‍💼 Loaded ${estimatorList.length} estimators`);
+    populateEstimatorDropdown();
 }
 
-  function safeParseImportedJSON(raw) {
-    if (!raw) return [];
+function populateEstimatorDropdown() {
+    const select = document.getElementById("estimator-select");
+    select.innerHTML = `<option value="">-- Select Estimator --</option>`;
 
-    let cleaned = raw;
-
-    // If Airtable returns an array like ["..."]
-    if (Array.isArray(cleaned)) {
-        cleaned = cleaned[0];
-    }
-
-    // Remove accidental double-encoded arrays: "[\"{...}\"]"
-    while (typeof cleaned === "string" && cleaned.trim().startsWith("[\"")) {
-        try {
-            cleaned = JSON.parse(cleaned)[0];
-        } catch {
-            break;
-        }
-    }
-
-    // Remove leading/trailing quotes if JSON accidentally double-stringed
-    if (typeof cleaned === "string" && cleaned.startsWith("\"") && cleaned.endsWith("\"")) {
-        try {
-            cleaned = JSON.parse(cleaned);
-        } catch {}
-    }
-
-    // Final actual parse of array of objects
-    try {
-        const parsed = JSON.parse(cleaned);
-        return Array.isArray(parsed) ? parsed : [];
-    } catch (e) {
-        console.warn("❌ Failed to parse Imported JSON. Raw value was:", raw);
-        return []; // fail-safe fallback
-    }
-}
-function normalizeRow(row) {
-    const normalized = { ...row };
-
-    // Normalize Qty (uppercase)
-    if (row.QTY === undefined && row.Qty !== undefined) {
-        normalized.QTY = Number(row.Qty) || 0;
-        delete normalized.Qty;
-    }
-
-    if (normalized.QTY === undefined) {
-        normalized.QTY = 0;
-    }
-
-    // Normalize Vendor
-    if (normalized.Vendor === undefined) {
-        normalized.Vendor = "";
-    }
-
-    return normalized;
+    estimatorList.forEach(r => {
+        const fullName = r.fields["Full Name"];
+        select.innerHTML += `<option value="${r.id}">${fullName}</option>`;
+    });
 }
 
 async function fetchAllTakeoffs() {
@@ -164,31 +123,41 @@ async function fetchAllTakeoffs() {
     return json.records.map(r => r.fields);
 }
 async function populateBuilders() {
-    const all = await fetchAllTakeoffs();
+    const url = `https://api.airtable.com/v0/${BASE_ID2}/tblDkASnuImCKBQyO?pageSize=100`;
+    
+    let builders = [];
+    let offset = null;
 
-    builderLookup = {}; // reset
+    // Fetch ALL builders with pagination
+    do {
+        const res = await fetch(
+            `${url}${offset ? "&offset=" + offset : ""}`,
+            { headers: { Authorization: `Bearer ${AIRTABLE_API_KEY2}` } }
+        );
+        const data = await res.json();
+        builders = builders.concat(data.records);
+        offset = data.offset;
+    } while (offset);
 
-    all.forEach(t => {
-        if (Array.isArray(t.Builder)) {
-            t.Builder.forEach(b => {
-                // Skip if already added
-                if (!builderLookup[b]) {
-builderLookup[b] = b;  // b is already the Builder record ID
-                }
-            });
-        }
+    // Reset lookup
+    builderLookup = {};
+
+    // Build lookup: recordId → Client Name
+    builders.forEach(b => {
+        const name = b.fields["Client Name"] || "Unnamed Builder";
+        builderLookup[b.id] = name;
     });
 
-    // Build list of actual display names
-    const builderNames = [...new Set(Object.values(builderLookup))].sort();
+    // Populate dropdown
+    builderSelect.innerHTML =
+        `<option value="">Select Builder</option>` +
+        Object.keys(builderLookup)
+            .map(id => `<option value="${id}">${builderLookup[id]}</option>`)
+            .join("");
 
-  builderSelect.innerHTML =
-    `<option value="">Select Builder</option>` +
-    Object.keys(builderLookup).map(id => 
-        `<option value="${id}">${builderLookup[id]}</option>`
-    ).join("");
-
+    console.log(`🏗 Loaded ${builders.length} builders`);
 }
+
 
 async function populatePlans(builder) {
     const all = await fetchAllTakeoffs();
@@ -220,30 +189,6 @@ async function populateElevations(builder, plan) {
         maybeShowLineItems();   // 🔥 FORCE re-check
 
 }
-async function populateCommunityDropdownByBuilderId(builderRecordId) {
-    console.log("🏘 Loading communities for builder:", builderRecordId);
-
-    const dropdown = document.getElementById("community-select");
-    dropdown.innerHTML = `<option value="">Loading...</option>`;
-
-    const list = await fetchCommunitiesByBuilderId(builderRecordId);
-
-    dropdown.innerHTML = "";  
-
-    if (list.length === 0) {
-        dropdown.innerHTML = `<option value="">No communities found</option>`;
-        return;
-    }
-
-    list.forEach(c => {
-        const opt = document.createElement("option");
-        opt.value = c.name;
-        opt.textContent = c.name;
-        dropdown.appendChild(opt);
-    });
-
-    console.log(`🏘 Loaded ${list.length} communities.`);
-}
 
 async function populateCommunities(builder, plan, elevation) {
     const all = await fetchAllTakeoffs();
@@ -263,37 +208,6 @@ async function populateCommunities(builder, plan, elevation) {
         comms.map(c => `<option value="${c}">${c}</option>`).join("");
         maybeShowLineItems();   // 🔥 FORCE re-check
 
-}
-
-async function fetchCommunitiesByBuilderId(builderRecordId) {
-    if (!builderRecordId) {
-        console.warn("⚠️ No builderRecordId provided to fetchCommunitiesByBuilderId()");
-        return [];
-    }
-
-    console.log("🌐 Fetching communities for builder ID:", builderRecordId);
-
-    const url = `https://api.airtable.com/v0/${BASE_ID}/${COMMUNITY_TABLE_ID}?filterByFormula=${encodeURIComponent(
-        `FIND("${builderRecordId}", ARRAYJOIN({Builder}))`
-    )}`;
-
-    try {
-        const res = await fetch(url, {
-            headers: { Authorization: `Bearer ${AIRTABLE_API_KEY2}` }
-        });
-
-        const data = await res.json();
-
-        if (!data.records) return [];
-
-        return data.records.map(r => ({
-            id: r.id,
-            name: r.fields["Community Name"] || ""
-        }));
-    } catch (err) {
-        console.error("❌ Error fetching communities:", err);
-        return [];
-    }
 }
 
 function maybeShowLineItems() {
@@ -673,17 +587,55 @@ async function loadExistingTakeoff(recordId) {
     const data = await res.json();
     const f = data.fields;
 
-    // ------------- Fill Header Fields -------------
-    document.getElementById("nameInput").value = f["Takeoff Name"] || "";
-    document.getElementById("takeoff-type").value = f["Type"] || "";
-    document.getElementById("builder-select").value = f["Builder"] || "";
-    document.getElementById("plan-select").value = f["Plan"] || "";
-    document.getElementById("elevation-select").value = f["Elevation"] || "";
-    document.getElementById("community-select").value = f["Community"] || "";
+    // -----------------------------
+    // ⭐ FILL HEADER FIELDS
+    // -----------------------------
+    document.getElementById("nameInput").value =
+        f["Takeoff Name"] || "";
 
+    document.getElementById("takeoff-type").value =
+        f["Type"] || "";
+
+    // ⭐ Builder (linked record)
+    if (Array.isArray(f["Builder"]) && f["Builder"].length > 0) {
+        document.getElementById("builder-select").value = f["Builder"][0];
+    }
+
+    // ⭐ Plan (text or single select)
+    if (f["Plan"]) {
+        document.getElementById("plan-select").value = f["Plan"];
+    }
+
+    // ⭐ Elevation (text or single select)
+    if (f["Elevation"]) {
+        document.getElementById("elevation-select").value = f["Elevation"];
+    }
+
+    // ⭐ Community (linked record)
+    if (Array.isArray(f["Community"]) && f["Community"].length > 0) {
+        document.getElementById("community-select").value = f["Community"][0];
+    }
+
+    // -----------------------------
+    // ⭐ SET ESTIMATOR (linked)
+    // -----------------------------
+    const estSelect = document.getElementById("estimator-select");
+
+    if (Array.isArray(f["Estimator"]) && f["Estimator"].length > 0) {
+        estSelect.value = f["Estimator"][0];
+        console.log("📌 Loaded Estimator:", f["Estimator"][0]);
+    } else {
+        console.log("⚠️ No Estimator linked on this record.");
+    }
+
+    // -----------------------------
+    // Show line items section
+    // -----------------------------
     revealLineItemsSection();
 
-    // ------------- Load JSON Into Table -------------
+    // -----------------------------
+    // ⭐ Load JSON Line Items
+    // -----------------------------
     const rawJson = f["Imported JSON"] || "[]";
     let parsed = [];
 
@@ -696,6 +648,7 @@ async function loadExistingTakeoff(recordId) {
 
     loadJsonIntoTable(parsed);
 }
+
 
 function loadJsonIntoTable(rows) {
     const tbody = document.getElementById("line-item-body");
@@ -852,28 +805,6 @@ function attachRowListeners(row) {
         console.log("✏️ Vendor edited", vendorInput.value);
     });
 }
-async function loadEstimatorsDropdown() {
-    const url = `https://api.airtable.com/v0/${BASE_ID2}/tbl1ymzV1CYldIGJU?fields[]=Full%20Name&pageSize=100`;
-
-    const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${AIRTABLE_API_KEY2}` }
-    });
-
-    const data = await res.json();
-    const dropdown = document.getElementById("estimator-select");
-
-    // Reset dropdown
-    dropdown.innerHTML = `<option value="">-- Select Estimator --</option>`;
-
-    data.records.forEach(rec => {
-        const opt = document.createElement("option");
-        opt.value = rec.id;   // linked record ID
-        opt.textContent = rec.fields["Full Name"];
-        dropdown.appendChild(opt);
-    });
-
-    console.log(`📌 Loaded ${data.records.length} estimators`);
-}
 
 async function loadEstimators() {
     const url = `https://api.airtable.com/v0/${BASE_ID2}/tbl1ymzV1CYldIGJU?fields[]=Full%20Name`;
@@ -961,6 +892,17 @@ async function saveTakeoff() {
     // --------------------------------------------
     const name = document.getElementById("nameInput")?.value.trim() || "";
 const takeoffName = document.getElementById("nameInput")?.value.trim() || "";
+const estimatorSelect = document.getElementById("estimator-select");
+const estimatorId = estimatorSelect.value;
+const takeoffType = document.getElementById("takeoff-type")?.value || "";
+
+// ONLY allow linked record selection
+if (estimatorId) {
+    payload.fields["Estimator"] = [estimatorId];  // Linked record array
+} else {
+    // No custom text allowed because this is a linked record field
+    payload.fields["Estimator"] = []; 
+}
 
     // --------------------------------------------
     // prevent overwrite — check Takeoff Name
@@ -972,8 +914,6 @@ if (await doesTakeoffAlreadyExist(takeoffName)) {
     localStorage.removeItem("editingTakeoffId");
 }
 
-
-
     // 1. Selected estimator (record ID) from dropdown
     const selectedEstimatorId =
         document.getElementById("estimator-select")?.value || "";
@@ -981,9 +921,6 @@ if (await doesTakeoffAlreadyExist(takeoffName)) {
     // 2. Typed override name
     const typedEstimatorName =
         document.getElementById("estimator-name-input")?.value.trim() || "";
-
-    // 3. Declare once (fixes your reference error)
-    let estimatorId = "";
 
     // 4. If dropdown chosen -> use record ID
     if (selectedEstimatorId) {
@@ -1030,7 +967,9 @@ console.log("🔢 Next Revision:", revision);
         "Takeoff Name": name,
         "Imported JSON": JSON.stringify(updatedJson),
         "Revision #": revision,
-        "Estimator": estimatorId ? [estimatorId] : []
+        "Estimator": estimatorId ? [estimatorId] : [],
+    "Type": takeoffType || null  
+
     };
 
     console.log("📤 Fields to save:", fields);

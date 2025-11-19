@@ -9,6 +9,8 @@ let filters = {
   type: "",
   branch: ""
 };
+let estimatorLookup = {};
+const ESTIMATOR_TABLE_ID1 = "tbl1ymzV1CYldIGJU";
 
 let builderLookup = {}; 
 const BUILDERS_TABLE_ID = "tblDkASnuImCKBQyO"; 
@@ -236,78 +238,95 @@ function formatMoney(num) {
 
 // ------------------------- RENDER ROW -------------------------
 function renderRow(rec) {
-  const f = rec.fields;
-  const id = rec.id;
+    const f = rec.fields;
+    const id = rec.id;
 
-  const active = f["Active"] === true;
-  const type = f["Type"] || "";
-  const division = f["Division (from Name)"] || "";
-  const status = f["Status"] || "Draft";
+    const active = f["Active"] === true;
+    const type = f["Type"] || "";
+    const division = f["Division (from Name)"] || "";
+    const status = f["Status"] || "Draft";
 
-  const totalCost = f["Total cost"] || 0;
-  const margin = f["Margin"] || 0;
+    const totalCost = f["Total cost"] || 0;
+    const margin = f["Margin"] || 0;
 
-  const updated = formatDate(f["Last updated"]);
-  const updatedBy = f["Last Modified by"] || "";
+    const updated = formatDate(f["Last updated"]);
+    const updatedBy = f["Last Modified by"] || "";
 
-  // --- Extract primary values first ---
- const takeoffName =
-    f["Takeoff Name"] ||     // ← ALWAYS use the actual text first
-    f["Plan Name"] ||        // ← fallback if you want
-    f["Takeoff Creation"] || // ← linked record LAST
-    f["Takeoff Creation 2"] ||
-    "Untitled";
+    // --- Primary display name ---
+    const takeoffName =
+        f["Takeoff Name"] ||
+        f["Plan Name"] ||
+        f["Takeoff Creation"] ||
+        f["Takeoff Creation 2"] ||
+        "Untitled";
 
+    // --- Safe Builder handling (lookup or text) ---
+    let builder = "";
+    if (Array.isArray(f.Builder)) {
+        builder = f.Builder.join(", ");
+    } else if (typeof f.Builder === "string") {
+        builder = f.Builder;
+    }
 
-  let builder = "";
-  if (Array.isArray(f["Builder"]) && f["Builder"].length > 0) {
-    const builderId = f["Builder"][0];
-    builder = builderLookup[builderId] || builderId;
-  }
-  const community = f["Community"] || "";
+    // --- Safe Community handling ---
+    let community =
+        f.Community ||
+        f["Community (from ...)"] ||
+        (Array.isArray(f.Community) ? f.Community.join(", ") : "") ||
+        "";
 
-  // --- Determine planName for grouping counts ---
-  const planName = f["Takeoff Name"] || takeoffName;
+    // --- Plans + Elevations from your formula fields ---
+    const plans = f.Plans || "";
+    const elevations = f.Elevations || "";
 
-  // --- Get count for this plan ---
-let skuHtml = `<div class="text-xs text-gray-400">Loading SKUs...</div>`;
+    // --- SKU Count ---
+    const skuCount = getSkuCountFromTakeoffFields(f);
 
-// --- Get count for this plan ---
-const skuCount = getSkuCountFromTakeoffFields(f);
-
-  return `
+    return `
     <tr data-id="${id}">
+
+      <!-- SELECT CHECKBOX -->
       <td class="py-3 px-3">
-        <input type="checkbox">
+        <input type="checkbox"
+               class="takeoff-select-checkbox"
+               data-record-id="${id}">
       </td>
 
-      <!-- ✅ Click to toggle active -->
+      <!-- ACTIVE DOT -->
       <td class="py-3 px-3">
-        <div class="w-3 h-3 rounded-full mx-auto cursor-pointer active-toggle ${active ? "bg-green-500" : "bg-gray-300"}"></div>
+        <div class="w-3 h-3 rounded-full mx-auto cursor-pointer active-toggle 
+        ${active ? "bg-green-500" : "bg-gray-300"}"></div>
       </td>
 
+      <!-- TAKEOFF NAME + DIVISION -->
       <td class="py-3 px-3">
         <div class="font-semibold text-gray-800">${takeoffName}</div>
         <div class="text-xs text-gray-500">${division}</div>
       </td>
 
+      <!-- TYPE BADGE -->
       <td class="py-3 px-3">
         <span class="px-2 py-1 bg-black text-white text-xs rounded-md">${type}</span>
       </td>
 
+      <!-- BUILDER, COMMUNITY, PLANS, ELEVATIONS, SKU COUNT -->
       <td class="py-3 px-3">
-        <div class="font-medium">${builder}</div>
-        <div class="text-xs text-gray-500">${community}</div>
+        <div class="font-medium">${builder || "—"}</div>
+        <div class="text-xs text-gray-500">${community || "—"}</div>
 
-        <!-- NEW ⭐ Takeoff Count Line -->
- <div id="sku-count-${id}" class="text-xs text-blue-600 font-semibold mt-1">
-  ${skuCount} SKU${skuCount === 1 ? "" : "s"}
-</div>
+        <div class="text-xs text-gray-600 mt-1">
+            <strong>Plans:</strong> ${plans || "—"}
+        </div>
+        <div class="text-xs text-gray-600">
+            <strong>Elevations:</strong> ${elevations || "—"}
+        </div>
 
-
+        <div class="text-xs text-blue-600 font-semibold mt-1">
+          ${skuCount} SKU${skuCount === 1 ? "" : "s"}
+        </div>
       </td>
 
-      <!-- ✅ Editable Status Dropdown -->
+      <!-- STATUS DROPDOWN -->
       <td class="py-3 px-3">
         <select class="status-select border rounded px-2 py-1 text-xs">
           <option value="Complete" ${status === "Complete" ? "selected" : ""}>Complete</option>
@@ -315,32 +334,31 @@ const skuCount = getSkuCountFromTakeoffFields(f);
         </select>
       </td>
 
+      <!-- COST -->
       <td class="py-3 px-3 text-right">${formatMoney(totalCost)}</td>
 
+      <!-- MARGIN -->
       <td class="py-3 px-3 text-right text-orange-600 font-medium">
         ${margin}%
       </td>
 
+      <!-- LAST UPDATED -->
       <td class="py-3 px-3 text-right">
         <div>${updated}</div>
         <div class="text-xs text-gray-500">by ${updatedBy}</div>
       </td>
 
-<td class="py-3 px-3 text-right">
-  <button class="edit-btn text-blue-600 underline" data-id="${id}">
-    Edit
-  </button>
-</td>
-<td>
-    <input type="checkbox"
-           class="takeoff-select-checkbox"
-           data-record-id="${rec.id}">
-</td>
-
+      <!-- EDIT BUTTON -->
+      <td class="py-3 px-3 text-right">
+        <button class="edit-btn text-blue-600 underline" data-id="${id}">
+          Edit
+        </button>
+      </td>
 
     </tr>
   `;
 }
+
 
 
 // ------------------------- ROW INTERACTIONS -------------------------
@@ -445,77 +463,171 @@ function groupRevisions(records) {
     const groups = {};
 
     records.forEach(rec => {
-        const name = rec.fields["Takeoff Name"] || "Untitled";
+        const f = rec.fields;
 
-        if (!groups[name]) {
-            groups[name] = {
-                name,
+        // Choose the stable consistent key
+        const groupKey =
+            f["Takeoff Name"] ||
+            f["Plan Name"] ||
+            f["Takeoff Creation"] ||
+            f["Takeoff Creation 2"] ||
+            "Untitled";
+
+        if (!groups[groupKey]) {
+            groups[groupKey] = {
+                name: groupKey,
                 revisions: [],
                 latest: null
             };
         }
 
-        groups[name].revisions.push(rec);
+        groups[groupKey].revisions.push(rec);
     });
 
     // Sort revisions & pick latest
     Object.values(groups).forEach(group => {
-        group.revisions.sort((a, b) => (b.fields.Revision || 0) - (a.fields.Revision || 0));
+        group.revisions.sort((a, b) =>
+            (b.fields["Revision #"] || 0) - (a.fields["Revision #"] || 0)
+        );
         group.latest = group.revisions[0];
     });
 
     return Object.values(groups);
 }
+
+// Linked fields are arrays → convert safely to text
+function safeLinked(field) {
+    if (!field) return "—";
+    if (Array.isArray(field)) return field.join(", ");
+    return field;
+}
+async function fetchEstimators() {
+    let records = [];
+    let offset = null;
+console.log("Fetching estimators…");
+
+    do {
+        const url = new URL(`https://api.airtable.com/v0/${BASE_ID}/${ESTIMATOR_TABLE_ID1}`);
+        url.searchParams.set("pageSize", "100");
+        if (offset) url.searchParams.set("offset", offset);
+
+        const res = await fetch(url, {
+            headers: { Authorization: `Bearer ${AIRTABLE_API_KEY}` }
+        });
+
+        const data = await res.json();
+        records = records.concat(data.records);
+        offset = data.offset;
+
+    } while (offset);
+
+    // Build lookup: recordId → Full Name
+    records.forEach(rec => {
+        const fullName = rec.fields["Full Name"] || "Unknown Estimator";
+        estimatorLookup[rec.id] = fullName;
+    });
+
+    console.log(`🧑‍💼 Loaded ${records.length} estimators`);
+}
+
 function renderGroupedRow(group) {
-    const latest = group.latest;
-    const f = latest.fields;
-    const id = latest.id;
-
     const takeoffName = group.name;
-    const revisionCount = group.revisions.length;
-    const latestRevisionNumber = f["Revision"] || 1;
+    const revisions = group.revisions;
 
-    const builder = builderLookup[f["Builder"]?.[0]] || "";
-    const community = f["Community"] || "";
-    const type = f["Type"] || "";
-    const status = f["Status"] || "";
-    const division = f["Division (from Name)"] || "";
+    let html = `
+        <td colspan="12" class="py-3 px-3">
+            <div class="font-semibold text-gray-900 cursor-pointer rev-toggle flex items-center gap-2">
+                <span class="toggle-arrow">▶</span>
+                ${takeoffName}
+                <span class="text-sm text-gray-500 ml-1">
+                    (${revisions.length} revisions)
+                </span>
+            </div>
 
+            <div class="ml-8 hidden revision-list mt-2 border-l border-gray-200 pl-4">
+    `;
+
+    revisions.forEach(rec => {
+    const f = rec.fields;
+    const id = rec.id;
+
+    const rev = f["Revision #"] || 1;
+
+const builder = f.Builder && f.Builder.length > 0
+    ? builderLookup[f.Builder[0]] || "—"
+    : "—";
+const estimator = f.Estimator && f.Estimator.length > 0
+    ? estimatorLookup[f.Estimator[0]] || "—"
+    : "—";
+    const community = safeLinked(f.Community || f["Community (from ...)"]);
+    const plans = f.Plans || "";
+    const elevations = f.Elevations || "";
     const skuCount = getSkuCountFromTakeoffFields(f);
+    const latest = rec === group.latest;
+console.log("Estimator field raw:", f.Estimator);
+console.log("Estimator Lookup:", estimatorLookup);
+console.log("Lookup key exists:", estimatorLookup["recVcMWwBioH0fCFG"]);
 
-    return `
-        <td class="py-3 px-3">
-            <input type="checkbox" 
-                   class="takeoff-select-checkbox"
+    html += `
+        <div class="flex items-center gap-4 py-2">
+
+            <input type="checkbox"
+                   class="takeoff-select-checkbox h-4 w-4"
                    data-record-id="${id}">
-        </td>
 
-        <td class="py-3 px-3">
-            <div class="font-semibold text-gray-900">${takeoffName}</div>
-            <div class="text-xs text-gray-500">
-                ${revisionCount} Revisions — Latest: ${latestRevisionNumber}
+            <div class="font-medium text-gray-800 min-w-[110px]">
+                Revision ${rev}
+                ${latest ? `<span class="text-xs text-green-600">(latest)</span>` : ""}
+            </div>
+
+            <div class="text-xs text-gray-500 flex flex-col leading-4">
+                <span><strong>Builder:</strong> ${builder}</span>
+                <span><strong>Estimator:</strong> ${estimator}</span>
+                <span><strong>Community:</strong> ${community}</span>
+                <span><strong>Plans:</strong> ${plans}</span>
+                <span><strong>Elevations:</strong> ${elevations}</span>
+                <span><strong>SKUs:</strong> ${skuCount}</span>
+            </div>
+
+            <button class="edit-btn text-blue-600 underline ml-auto" data-id="${id}">
+                Edit
+            </button>
+        </div>
+    `;
+});
+
+
+    html += `
             </div>
         </td>
-
-        <td class="py-3 px-3">
-            <span class="px-2 py-1 bg-black text-white text-xs rounded-md">${type}</span>
-        </td>
-
-        <td class="py-3 px-3">
-            <div class="font-medium">${builder}</div>
-            <div class="text-xs text-gray-500">${community}</div>
-            <div class="text-xs text-blue-600">${skuCount} SKUs</div>
-        </td>
-
-        <td class="py-3 px-3">${status}</td>
-
-        <td class="py-3 px-3 text-right">
-            <button class="edit-btn text-blue-600 underline" data-id="${id}">
-                Edit Latest
-            </button>
-        </td>
     `;
+
+    return html;
 }
+
+function enableRevisionToggles() {
+    document.querySelectorAll(".rev-toggle").forEach(toggle => {
+        toggle.addEventListener("click", () => {
+            
+            const arrow = toggle.querySelector(".toggle-arrow"); // FIXED
+            const list = toggle.parentElement.querySelector(".revision-list");
+
+            if (!arrow || !list) return; // Safety check
+
+            const isHidden = list.classList.contains("hidden");
+
+            if (isHidden) {
+                list.classList.remove("hidden");
+                arrow.textContent = "▼";
+            } else {
+                list.classList.add("hidden");
+                arrow.textContent = "▶";
+            }
+        });
+    });
+}
+
+
 
 function renderPaginatedTable() {
     // 1. Apply filters to ALL takeoff records
@@ -570,6 +682,7 @@ function renderPaginatedTable() {
     // 6. Re-enable interactions
     enableRowInteractions();
     enableGroupToggles();
+     enableRevisionToggles();
 
     // 7. Update dashboard stats
     document.getElementById("total-takeoff-count").textContent = revisionGroups.length;
@@ -643,8 +756,9 @@ function getSkuCountFromTakeoffFields(fields) {
 
 // ------------------------- INIT -------------------------
 document.addEventListener("DOMContentLoaded", async () => {
-  await fetchBuilders();         // ⭐ loads linked table
-  await populateTakeoffTable();  // ⭐ renders table with pagination
+    await fetchBuilders();     // loads builder lookup
+    await fetchEstimators();   // MUST load before rendering the table
+    await populateTakeoffTable();  // now estimatorLookup is full
 
   const prevBtn = document.getElementById("prev-page");
   const nextBtn = document.getElementById("next-page");
@@ -827,7 +941,7 @@ async function createNewRevision(oldRecord, newJson, newRevision) {
 
 // 5. UPDATE PRICING IN JSON
 function updateJsonPricing(importedJson, priceMap) {
-    let updated = false;
+    let anyChange = false;
 
     importedJson.forEach(item => {
         const sku = (item.SKU || "").trim();
@@ -839,20 +953,31 @@ function updateJsonPricing(importedJson, priceMap) {
         const sheetEntry = priceMap[sku];
         if (!sheetEntry) return;
 
-        // Vendor must match
         if (sheetEntry.vendor !== vendor) return;
 
-        // Update unit cost
-        item["Unit Cost"] = sheetEntry.unitCost;
+        const oldCost = Number(item["Unit Cost"] || 0);
+        const newCost = Number(sheetEntry.price || sheetEntry.unitCost || 0);
 
-        // Recalculate total
-        item["Total Cost"] = qty * sheetEntry.unitCost;
+        if (oldCost !== newCost) {
+            item.__priceChanged = true;
+            item.__oldCost = oldCost;
+            item.__newCost = newCost;
+            item.__sku = sku;
+            item.__vendor = vendor;
+            item.__qty = qty;
 
-        updated = true;
+            anyChange = true;
+        }
+
+        // apply changes
+        item["Unit Cost"] = newCost;
+        item["Total Cost"] = qty * newCost;
     });
 
-    return updated ? importedJson : null;
+    return anyChange ? importedJson : null;
 }
+
+
 // ===================== PROGRESS MODAL CONTROL =====================
 function showProgressModal() {
     document.getElementById("pricing-progress-modal").classList.remove("hidden");
@@ -962,6 +1087,18 @@ if (!updatedJson || !Array.isArray(updatedJson)) {
 // ------------------------
 
 const changesDetected = updatedJson.some(item => item.__priceChanged === true);
+const changedSkus = updatedJson.filter(i => i.__priceChanged);
+
+console.group(`Changes for ${takeoffName}`);
+changedSkus.forEach(item => {
+    console.log(
+        `${item.__sku} — vendor: ${item.__vendor}`
+        + ` | old: ${item.__oldCost}`
+        + ` → new: ${item.__newCost}`
+        + ` | qty: ${item.__qty}`
+    );
+});
+console.groupEnd();
 
 if (!changesDetected) {
     console.log(`📭 No pricing differences for ${takeoffName} — no revision created.`);
@@ -972,7 +1109,7 @@ if (!changesDetected) {
             // ------------------------------------------------------------------
             // If changes WERE detected → CREATE NEW REVISION RECORD
             // ------------------------------------------------------------------
-            const oldRevision = Number(fields.Revision || 0);
+const oldRevision = Number(fields["Revision #"] || 0);
             const newRevision = oldRevision + 1;
 
             console.log(
@@ -1014,14 +1151,24 @@ function groupRevisions(records) {
             };
         }
 
+        // Normalize revision value
+        rec._rev = Number(
+            rec.fields["Revision #"] ??
+            rec.fields["Revision"] ??
+            0
+        );
+
         groups[name].revisions.push(rec);
     });
 
-    // Find latest revision
     Object.values(groups).forEach(g => {
-        g.revisions.sort((a, b) => (b.fields.Revision || 0) - (a.fields.Revision || 0));
+        // Sort highest → lowest
+        g.revisions.sort((a, b) => b._rev - a._rev);
+
+        // Highest revision always the latest
         g.latest = g.revisions[0];
     });
 
     return Object.values(groups);
 }
+

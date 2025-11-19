@@ -1,13 +1,91 @@
-#savePlanElevation {
-  position: absolute;
-  top: 20px;       /* adjust distance from top */
-  right: 20px;     /* adjust distance from right */
-  z-index: 9999;   /* ensures it appears above table or cards */
-  background-color: #2563eb; /* tailwind blue-600 equivalent */
-  color: white;
-  padding: 8px 14px;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+/* Branch Header */
+.takeoff-branch-header {
+    background: #f5f7fa;
+    font-weight: 600;
+    padding: 14px 18px;
+    margin-top: 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 1px solid #e3e6ed;
+}
+
+/* Takeoff Group Box */
+.takeoff-group {
+    background: #ffffff;
+    border: 1px solid #e9ecf2;
+    border-radius: 8px;
+    padding: 12px 18px;
+    margin: 10px 0 0 0;
+}
+
+/* Takeoff Header */
+.takeoff-title-row {
+    font-size: 15px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    margin-bottom: 6px;
+}
+
+.takeoff-title-row .caret {
+    font-size: 14px;
+    color: #535b6a;
+}
+
+/* Revision Container */
+.revision-list {
+    margin-left: 24px;
+    border-left: 2px solid #e1e4eb;
+    padding-left: 16px;
+    margin-top: 8px;
+}
+
+/* Individual Revision Row */
+.revision-row {
+    display: flex;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid #f0f2f6;
+}
+
+.revision-row:last-child {
+    border-bottom: none;
+}
+
+.revision-row:hover {
+    background: #f9fafc;
+}
+
+/* Small tags */
+.revision-tag {
+    background: #e7f1ff;
+    color: #1d73e8;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 8px;
+}
+
+.revision-latest {
+    background: #d8ffe0;
+    color: #1f8c3a;
+}
+
+/* Edit Button */
+.revision-edit {
+    color: #1d73e8;
+    font-size: 13px;
+    text-decoration: underline;
+    margin-left: auto;
+    margin-right: 10px;
+    cursor: pointer;
+}
+
+.revision-sku-count {
+    font-size: 12px;
+    color: #6b7280;
+    margin-left: 10px;
 }
