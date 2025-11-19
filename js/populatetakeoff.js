@@ -331,6 +331,13 @@ const skuCount = getSkuCountFromTakeoffFields(f);
     Edit
   </button>
 </td>
+<td>
+    <input type="checkbox"
+           class="takeoff-select-checkbox"
+           data-record-id="${rec.id}">
+</td>
+
+
     </tr>
   `;
 }
@@ -434,47 +441,142 @@ function countTakeoffsByPlan(records) {
 }
 
 // ------------------------- RENDER PAGINATED TABLE -------------------------
-function renderPaginatedTable() {
-  // 1. Apply filters
-  const filtered = applyFilters(allTakeoffRecords);
+function groupRevisions(records) {
+    const groups = {};
 
-  // 2. Group filtered results
-  const groups = groupByBranch(filtered);
-
-  let html = "";
-
-  Object.entries(groups).forEach(([branch, records]) => {
-    const groupId = branch.replace(/\s+/g, "-").toLowerCase();
-
-    // Header
-    html += `
-      <tr class="bg-gray-100 cursor-pointer" data-group="${groupId}">
-        <td colspan="10" class="py-3 px-4 font-semibold text-gray-800">
-          ${branch} — <span class="text-blue-600">${records.length} Takeoffs</span>
-        </td>
-      </tr>
-    `;
-
-    // Records in that branch
     records.forEach(rec => {
-      html += `
-        <tr class="branch-row hidden group-${groupId}">
-          ${renderRow(rec)}
-        </tr>
-      `;
+        const name = rec.fields["Takeoff Name"] || "Untitled";
+
+        if (!groups[name]) {
+            groups[name] = {
+                name,
+                revisions: [],
+                latest: null
+            };
+        }
+
+        groups[name].revisions.push(rec);
     });
-  });
 
-  tableBody.innerHTML = html;
+    // Sort revisions & pick latest
+    Object.values(groups).forEach(group => {
+        group.revisions.sort((a, b) => (b.fields.Revision || 0) - (a.fields.Revision || 0));
+        group.latest = group.revisions[0];
+    });
 
-  enableRowInteractions();
-  enableGroupToggles();
-
-  // Update stat cards
-  document.getElementById("total-takeoff-count").textContent = filtered.length;
-  document.getElementById("draft-takeoff-count").textContent =
-    filtered.filter(r => r.fields["Status"] === "Draft").length;
+    return Object.values(groups);
 }
+function renderGroupedRow(group) {
+    const latest = group.latest;
+    const f = latest.fields;
+    const id = latest.id;
+
+    const takeoffName = group.name;
+    const revisionCount = group.revisions.length;
+    const latestRevisionNumber = f["Revision"] || 1;
+
+    const builder = builderLookup[f["Builder"]?.[0]] || "";
+    const community = f["Community"] || "";
+    const type = f["Type"] || "";
+    const status = f["Status"] || "";
+    const division = f["Division (from Name)"] || "";
+
+    const skuCount = getSkuCountFromTakeoffFields(f);
+
+    return `
+        <td class="py-3 px-3">
+            <input type="checkbox" 
+                   class="takeoff-select-checkbox"
+                   data-record-id="${id}">
+        </td>
+
+        <td class="py-3 px-3">
+            <div class="font-semibold text-gray-900">${takeoffName}</div>
+            <div class="text-xs text-gray-500">
+                ${revisionCount} Revisions — Latest: ${latestRevisionNumber}
+            </div>
+        </td>
+
+        <td class="py-3 px-3">
+            <span class="px-2 py-1 bg-black text-white text-xs rounded-md">${type}</span>
+        </td>
+
+        <td class="py-3 px-3">
+            <div class="font-medium">${builder}</div>
+            <div class="text-xs text-gray-500">${community}</div>
+            <div class="text-xs text-blue-600">${skuCount} SKUs</div>
+        </td>
+
+        <td class="py-3 px-3">${status}</td>
+
+        <td class="py-3 px-3 text-right">
+            <button class="edit-btn text-blue-600 underline" data-id="${id}">
+                Edit Latest
+            </button>
+        </td>
+    `;
+}
+
+function renderPaginatedTable() {
+    // 1. Apply filters to ALL takeoff records
+    const filtered = applyFilters(allTakeoffRecords);
+
+    // 2. Group them by Takeoff Name (combine all revisions)
+    const revisionGroups = groupRevisions(filtered);
+
+    // 3. Build branch → [groups] structure using the LATEST revision
+    const branchBuckets = {};
+
+    revisionGroups.forEach(group => {
+        const latest = group.latest.fields;
+        const branch = latest["Division (from Name)"] || "Unknown";
+
+        if (!branchBuckets[branch]) {
+            branchBuckets[branch] = [];
+        }
+
+        branchBuckets[branch].push(group);
+    });
+
+    // 4. Construct HTML for the table
+    let html = "";
+
+    Object.entries(branchBuckets).forEach(([branch, groups]) => {
+        const groupId = branch.replace(/\s+/g, "-").toLowerCase();
+
+        // Branch header row (click to collapse/expand)
+        html += `
+            <tr class="bg-gray-100 cursor-pointer" data-group="${groupId}">
+                <td colspan="10" class="py-3 px-4 font-semibold text-gray-800">
+                    ${branch} — 
+                    <span class="text-blue-600">${groups.length} Takeoffs</span>
+                </td>
+            </tr>
+        `;
+
+        // Render grouped takeoffs inside this branch
+        groups.forEach(group => {
+            html += `
+                <tr class="branch-row hidden group-${groupId}">
+                    ${renderGroupedRow(group)}
+                </tr>
+            `;
+        });
+    });
+
+    // 5. Update DOM
+    tableBody.innerHTML = html;
+
+    // 6. Re-enable interactions
+    enableRowInteractions();
+    enableGroupToggles();
+
+    // 7. Update dashboard stats
+    document.getElementById("total-takeoff-count").textContent = revisionGroups.length;
+    document.getElementById("draft-takeoff-count").textContent =
+        revisionGroups.filter(g => g.latest.fields["Status"] === "Draft").length;
+}
+
 
 function enableGroupToggles() {
   document.querySelectorAll("[data-group]").forEach(header => {
@@ -612,3 +714,267 @@ document.getElementById("branch-filter").addEventListener("change", e => {
 
 });
 
+// ============================================================
+// 🔵 UPDATE PRICING FEATURE
+// ============================================================
+
+// 1. Load Excel Sheet (LOSKUDATA.xlsx)
+async function loadSkuPricingFromExcel() {
+    const url =
+      "https://docs.google.com/spreadsheets/d/1E3sRhqKfzxwuN6VOmjI2vjWsk_1QALEKkX7mNXzlVH8/gviz/tq?tqx=out:csv";
+
+    try {
+        console.log("📡 Fetching live Google Sheet CSV…");
+
+        const response = await fetch(url, { cache: "no-cache" });
+
+        if (!response.ok) {
+            console.error("❌ Price sheet request failed:", response.status);
+            alert("Could not fetch live pricing sheet.");
+            return null;
+        }
+
+        const csvText = await response.text();
+
+        // Parse CSV into rows
+        const rows = Papa.parse(csvText, {
+            header: true,
+            skipEmptyLines: true
+        }).data;
+
+        console.log("📦 Parsed CSV Rows:", rows);
+
+        // Build price map: SKU → { vendor, price }
+        const priceMap = {};
+
+        rows.forEach(row => {
+            const sku = String(row["SKU"] || "").trim();
+            const vendor = String(row["Vendor"] || "").trim();
+            const price = Number(row["Unit Cost"] || row["Cost"] || 0);
+
+            if (!sku) return; // Skip empty rows
+
+            priceMap[sku] = {
+                vendor,
+                price
+            };
+        });
+
+        console.log("📘 Final Price Map:", priceMap);
+        return priceMap;
+
+    } catch (err) {
+        console.error("❌ Error parsing pricing sheet:", err);
+        alert("Failed to load pricing sheet. Check console.");
+        return null;
+    }
+}
+
+// 2. Read selected takeoffs
+function getSelectedTakeoffs() {
+    return [...document.querySelectorAll(".takeoff-select-checkbox:checked")]
+        .map(cb => cb.dataset.recordId);
+}
+
+// 3. Fetch takeoff JSON
+async function fetchTakeoffJson(recordId) {
+    const res = await fetch(
+        `https://api.airtable.com/v0/${BASE_ID}/${TAKEOFFS_TABLE_ID}/${recordId}`,
+        {
+            headers: { Authorization: `Bearer ${AIRTABLE_API_KEY}` }
+        }
+    );
+
+    const data = await res.json();
+    if (data.error) {
+        console.error("🔥 Airtable read error:", data.error);
+        return null;
+    }
+
+    return data;
+}
+
+// 4. CREATE NEW REVISION RECORD
+async function createNewRevision(oldRecord, newJson, newRevision) {
+    const fields = oldRecord.fields;
+
+    const newFields = {
+        "Takeoff Name": fields["Takeoff Name"],
+        "Type": fields["Type"],
+        "Builder": fields["Builder"],
+        "Plan": fields["Plan"],
+        "Elevation": fields["Elevation"],
+        "Community": fields["Community"],
+        "Status": "Draft",
+        "Revision": newRevision,
+        "Imported JSON": JSON.stringify(newJson)
+    };
+
+    const res = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TAKEOFFS_TABLE_ID}`, {
+        method: "POST",
+        headers: {
+            Authorization: `Bearer ${AIRTABLE_API_KEY}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ fields: newFields })
+    });
+
+    const data = await res.json();
+    console.log("➕ Created new revision:", data);
+
+    return data;
+}
+
+// 5. UPDATE PRICING IN JSON
+function updateJsonPricing(importedJson, priceMap) {
+    let updated = false;
+
+    importedJson.forEach(item => {
+        const sku = (item.SKU || "").trim();
+        const vendor = (item.Vendor || "").trim().toLowerCase();
+        const qty = Number(item.QTY || item.Qty || 0);
+
+        if (!sku || !vendor) return;
+
+        const sheetEntry = priceMap[sku];
+        if (!sheetEntry) return;
+
+        // Vendor must match
+        if (sheetEntry.vendor !== vendor) return;
+
+        // Update unit cost
+        item["Unit Cost"] = sheetEntry.unitCost;
+
+        // Recalculate total
+        item["Total Cost"] = qty * sheetEntry.unitCost;
+
+        updated = true;
+    });
+
+    return updated ? importedJson : null;
+}
+// ===================== PROGRESS MODAL CONTROL =====================
+function showProgressModal() {
+    document.getElementById("pricing-progress-modal").classList.remove("hidden");
+}
+
+function hideProgressModal() {
+    document.getElementById("pricing-progress-modal").classList.add("hidden");
+}
+
+function updateProgressUI(current, total, skuCurrent, skuTotal, startTime) {
+    const percent = Math.floor((current / total) * 100);
+
+    const bar = document.getElementById("pricing-progress-bar");
+    const text = document.getElementById("pricing-progress-text");
+    const sub = document.getElementById("pricing-progress-sub");
+
+    bar.style.width = percent + "%";
+    text.textContent = `Processing Takeoff ${current} of ${total}`;
+
+    // SKU progress
+    if (skuTotal > 0) {
+        sub.textContent = `Processing SKU ${skuCurrent} of ${skuTotal}`;
+    }
+
+    // Estimate remaining time
+    if (current > 1) {
+        const elapsed = (Date.now() - startTime) / 1000;
+        const avgTime = elapsed / (current - 1);
+        const remaining = Math.ceil(avgTime * (total - current));
+
+        sub.textContent += ` — Estimated Time Left: ${remaining}s`;
+    }
+}
+
+// ------------------------------------------------------------
+// MAIN BUTTON HANDLER
+// ------------------------------------------------------------
+document.addEventListener("DOMContentLoaded", () => {
+    const updateBtn = document.querySelector("#update-pricing-btn");
+    if (!updateBtn) return;
+
+updateBtn.addEventListener("click", async () => {
+    const selected = getSelectedTakeoffs();
+    if (!selected.length) {
+        alert("❗ Select at least one takeoff first.");
+        return;
+    }
+
+    // Show progress modal
+    showProgressModal();
+
+    const priceMap = await loadSkuPricingFromExcel();
+    if (!priceMap) {
+        hideProgressModal();
+        alert("❗ Could not load SKU price sheet.");
+        return;
+    }
+
+    let startTime = Date.now();
+
+    for (let i = 0; i < selected.length; i++) {
+        const recordId = selected[i];
+
+        // UI Progress Update
+        updateProgressUI(i + 1, selected.length, 0, 0, startTime);
+
+        const existing = await fetchTakeoffJson(recordId);
+        if (!existing) continue;
+
+        const fields = existing.fields;
+        let importedJson = [];
+        
+
+        try {
+            importedJson = JSON.parse(fields["Imported JSON"]);
+        } catch (e) {
+            console.error("⚠️ JSON Parse Error:", e);
+            continue;
+        }
+
+        // SKU progress inside JSON
+        for (let s = 0; s < importedJson.length; s++) {
+            updateProgressUI(i + 1, selected.length, s + 1, importedJson.length, startTime);
+        }
+
+        const updatedJson = updateJsonPricing(importedJson, priceMap);
+        if (!updatedJson) continue;
+
+        const oldRevision = Number(fields.Revision || 0);
+        const newRevision = oldRevision + 1;
+
+        await createNewRevision(existing, updatedJson, newRevision);
+    }
+
+    hideProgressModal();
+    alert("✅ Pricing updated & revisions created.");
+    location.reload();
+});
+
+});
+function groupRevisions(records) {
+    const groups = {};
+
+    records.forEach(rec => {
+        const name = rec.fields["Takeoff Name"] || "Untitled";
+
+        if (!groups[name]) {
+            groups[name] = {
+                name,
+                revisions: [],
+                latest: null
+            };
+        }
+
+        groups[name].revisions.push(rec);
+    });
+
+    // Find latest revision
+    Object.values(groups).forEach(g => {
+        g.revisions.sort((a, b) => (b.fields.Revision || 0) - (a.fields.Revision || 0));
+        g.latest = g.revisions[0];
+    });
+
+    return Object.values(groups);
+}
