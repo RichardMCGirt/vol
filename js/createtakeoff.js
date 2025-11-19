@@ -76,10 +76,10 @@ async function loadEstimators() {
     let all = [];
 
     do {
-        const url = `https://api.airtable.com/v0/${BASE_ID}/${ESTIMATOR_TABLE_ID}?pageSize=100${offset ? "&offset="+offset : ""}`;
+        const url = `https://api.airtable.com/v0/${BASE_ID2}/${ESTIMATOR_TABLE_ID}?pageSize=100${offset ? "&offset="+offset : ""}`;
 
         const res = await fetch(url, {
-            headers: { Authorization: `Bearer ${AIRTABLE_API_KEY}` }
+            headers: { Authorization: `Bearer ${AIRTABLE_API_KEY2}` }
         });
 
         const data = await res.json();
