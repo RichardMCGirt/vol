@@ -73,80 +73,118 @@ async function getNextRevision(finalTakeoffName) {
 // ====================================================================
 // 📝 LOG ACTIVITY — AUTO CREATE RECORD IF NEEDED
 // ====================================================================
-async function logTakeoffImportActivity(takeoffName) {
+// ====================================================================
+// 📝 SAFE & FIXED — LOG TAKEOFF IMPORT ACTIVITY
+// ====================================================================
+async function logTakeoffImportActivity(takeoffName, planName, elevation, nextRevision) {
     const apiKey = EAIRTABLE_API_KEY;
     const baseId = EBASE_ID;
     const tableId = LOGIN_HISTORY_TABLE_ID;
 
+    console.log("🔍 ENTER logTakeoffImportActivity");
+    console.log("📌 takeoffName:", takeoffName);
+    console.log("📌 planName:", planName);
+    console.log("📌 elevation:", elevation);
+    console.log("📌 revision:", nextRevision);
+
     let userRecordId = localStorage.getItem("userRecordId");
-    const timestamp = new Date().toISOString();
+    console.log("🧪 Stored userRecordId:", userRecordId);
+
+    if (!userRecordId || userRecordId === "undefined") {
+        console.warn("❌ No userRecordId — cannot log activity.");
+        return;
+    }
+
+    // ------------------------------------------------------------
+    // STEP 1 — GET USER RECORD
+    // ------------------------------------------------------------
+    const getUrl = `https://api.airtable.com/v0/${baseId}/${tableId}/${userRecordId}`;
+    console.log("🔗 GET URL:", getUrl);
+
+    const getResponse = await fetch(getUrl, {
+        headers: { Authorization: `Bearer ${apiKey}` }
+    });
+
+    console.log("📡 GET Status:", getResponse.status);
+    const getJson = await getResponse.json();
+    console.log("📦 GET JSON:", getJson);
+
+    if (!getResponse.ok) {
+        console.warn("❌ GET failed — aborting activity log.");
+        return;
+    }
+
+    // ------------------------------------------------------------
+    // STEP 2 — PARSE Login History
+    // ------------------------------------------------------------
     let history = [];
+    try {
+        history = JSON.parse(getJson.fields["Login History"] || "[]");
+        if (!Array.isArray(history)) history = [];
+    } catch (err) {
+        console.warn("⚠️ Bad Login History JSON — resetting.");
+        history = [];
+    }
 
-    // ---- STEP 1: Try fetch existing record ----
-    if (userRecordId) {
-        const getUrl = `https://api.airtable.com/v0/${baseId}/${tableId}/${userRecordId}`;
-        const res = await fetch(getUrl, { headers: { Authorization: `Bearer ${apiKey}` } });
+    // ------------------------------------------------------------
+    // STEP 3 — Append new activity entry
+    // ------------------------------------------------------------
+    const timestamp = new Date().toISOString();
 
-        if (res.ok) {
-            const data = await res.json();
-            try {
-                history = JSON.parse(data.fields["Login History"] || "[]");
-            } catch {
-                history = [];
-            }
-        } else {
-            console.warn("⚠️ Invalid stored userRecordId – creating new record");
-            userRecordId = null;
+    history.push({
+        timestamp,
+        type: "Takeoff Import",
+        details: {
+            takeoffName,
+            plan: planName || "",
+            elevation: elevation || "",
+            revision: nextRevision || ""
         }
-    }
+    });
 
-    // ---- STEP 2: Create record if missing ----
-    if (!userRecordId) {
-        const createUrl = `https://api.airtable.com/v0/${baseId}/${tableId}`;
+    console.log("📝 Updated History:", history);
 
-        const res = await fetch(createUrl, {
-            method: "POST",
-            headers: {
-                Authorization: `Bearer ${apiKey}`,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                fields: {
-                    "User Email": localStorage.getItem("userEmail") || "unknown",
-                    "Login History": "[]"
-                }
-            })
-        });
+    // ------------------------------------------------------------
+    // STEP 4 — SAFE PATCH (NO SYNCED FIELDS)
+    // ------------------------------------------------------------
+    const patchUrl = `https://api.airtable.com/v0/${baseId}/${tableId}/${userRecordId}`;
+    console.log("🔗 PATCH URL:", patchUrl);
 
-        const created = await res.json();
-        userRecordId = created.id;
-        localStorage.setItem("userRecordId", userRecordId);
-        console.log("🆕 Created new activity record:", userRecordId);
-    }
+    // ONLY allowed writable fields
+    const patchBody = {
+        fields: {
+            "Last Activity": timestamp,
+            "Last Takeoff Imported": takeoffName,
+            "Login History": JSON.stringify(history),
+            "Activity Type": "Takeoff Import"
+        }
+    };
 
-    // ---- STEP 3: PATCH updated activity ----
-    history.push(timestamp);
+    console.log("📤 Final PATCH Payload:", patchBody);
 
-    const patchUrl =
-        `https://api.airtable.com/v0/${baseId}/${tableId}/${userRecordId}`;
-
-    await fetch(patchUrl, {
+    const patchResponse = await fetch(patchUrl, {
         method: "PATCH",
         headers: {
             Authorization: `Bearer ${apiKey}`,
             "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-            fields: {
-                "Login History": JSON.stringify(history),
-                "Last Activity": timestamp,
-                "Last Takeoff Imported": takeoffName || ""
-            }
-        })
+        body: JSON.stringify(patchBody)
     });
 
-    console.log("📝 Logged Takeoff Import Activity:", timestamp);
+    console.log("📡 PATCH Status:", patchResponse.status);
+    const patchJson = await patchResponse.json();
+    console.log("📦 PATCH Response JSON:", patchJson);
+
+    if (!patchResponse.ok) {
+        console.error("❌ PATCH FAILED — Activity NOT logged");
+        return;
+    }
+
+    console.log("✅ Activity logged successfully:", timestamp);
 }
+
+
+
 
 // ====================================================================
 // 🎯 ROW FILTER
@@ -276,14 +314,20 @@ document.addEventListener("DOMContentLoaded", () => {
         // --------------------------------------------------------------
         // UPLOAD TAKEOFF RECORD
         // --------------------------------------------------------------
-        await uploadRow({
-            fields: {
-                "Takeoff Name": finalTakeoffName,
-                "Estimator": estimatorId ? [estimatorId] : [],
-                "Imported JSON": JSON.stringify(parsedRows),
-                "Revision #": revision
-            }
-        });
+        await uploadRow(
+    {
+        fields: {
+            "Takeoff Name": finalTakeoffName,
+            "Estimator": estimatorId ? [estimatorId] : [],
+            "Imported JSON": JSON.stringify(parsedRows),
+            "Revision #": revision
+        }
+    },
+    takeoffName,   // plan only
+    elevation,     // elevation
+    revision       // revision #
+);
+
 
         alert("✅ Takeoff import complete!");
     });
@@ -292,7 +336,7 @@ document.addEventListener("DOMContentLoaded", () => {
 // ====================================================================
 // ▶ UPLOAD RECORD TO AIRTABLE
 // ====================================================================
-async function uploadRow(payload) {
+async function uploadRow(payload, takeoffName, elevation, revision) {
     const url = `https://api.airtable.com/v0/${EBASE_ID}/${ETABLE_ID}`;
 
     const res = await fetch(url, {
@@ -311,6 +355,11 @@ async function uploadRow(payload) {
 
     console.log("✅ Row uploaded successfully");
 
-    logTakeoffImportActivity(payload.fields["Takeoff Name"])
+logTakeoffImportActivity(
+    payload.fields["Takeoff Name"],  // takeoffName
+    takeoffName,                    // plan
+    elevation,                      // elevation
+    revision                        // revision #
+)
         .catch(err => console.warn("⚠️ Activity logging failed:", err));
 }

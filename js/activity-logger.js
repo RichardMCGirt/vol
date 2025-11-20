@@ -1,89 +1,108 @@
-//----------------------------------------------
-// ⭐ UNIVERSAL ACTIVITY LOGGER
-// Stores activity objects inside Login History
-//----------------------------------------------
+// ================================
+//  ACTIVITY LOGGER (Option B)
+//  Stores structured activity:
+//  { timestamp, type, details }
+// ================================
 
-export async function logActivity(eventData = {}) {
-  try {
-    const userRecordId = localStorage.getItem("userRecordId");
-    const userName = localStorage.getItem("loggedInUserName") || "";
-    const userEmail = localStorage.getItem("loggedInUser") || "";
+export async function logActivity(activityType, details = "") {
+    const apiKey = EAIRTABLE_API_KEY;
+    const baseId = EBASE_ID;
+    const tableId = LOGIN_HISTORY_TABLE_ID;
+
+    console.log("🔍 ENTER logActivity:", activityType, details);
+
+    let userRecordId = localStorage.getItem("userRecordId");
+    let userEmail = localStorage.getItem("loggedInUser");
+
+    console.log("📌 userRecordId:", userRecordId);
+    console.log("📌 userEmail:", userEmail);
 
     if (!userRecordId) {
-      console.warn("⚠ Cannot log activity — no userRecordId found in localStorage");
-      return;
+        console.warn("❌ No userRecordId — cannot log activity.");
+        return;
     }
 
-    // Airtable config
-    const AIRTABLE_API_KEY = "patxrKdNvMqOO43x4.274bd66bb800bb57cd8b22fe56831958ac0e8d79666cc5e4496013246c33a2f3";
-    const BASE_ID = "appnZNCcUAJCjGp7L";
-    const TABLE_ID = "tblfSrIrImd28RpAD";
-
-    //-----------------------------------------------------
-    // 🔹 Build new activity event object
-    //-----------------------------------------------------
     const timestamp = new Date().toISOString();
-
-    const activityEvent = {
-      type: eventData.type || "Unknown",
-      timestamp,
-      user: userName,
-      email: userEmail,
-      details: eventData.details || "",
-      takeoffName: eventData.takeoffName || "",
-      builder: eventData.builder || "",
-      community: eventData.community || "",
-      newValue: eventData.newValue || "",
-      lineItems: eventData.lineItems || null
-    };
-
-    //-----------------------------------------------------
-    // 1. Read existing Login History
-    //-----------------------------------------------------
-    const fetchURL = `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}/${userRecordId}`;
-    const res = await fetch(fetchURL, {
-      headers: { Authorization: `Bearer ${AIRTABLE_API_KEY}` }
-    });
-
-    const data = await res.json();
     let history = [];
 
-    try {
-      if (data.fields["Login History"]) {
-        history = JSON.parse(data.fields["Login History"]);
-        if (!Array.isArray(history)) history = [];
-      }
-    } catch (e) {
-      console.error("❌ Failed parsing existing Login History:", e);
-      history = [];
-    }
+    // STEP 1 — Fetch current user record
+    const getUrl = `https://api.airtable.com/v0/${baseId}/${tableId}/${userRecordId}`;
+    console.log("🔗 GET URL:", getUrl);
 
-    //-----------------------------------------------------
-    // 2. Add new event to array
-    //-----------------------------------------------------
-    history.push(activityEvent);
-
-    //-----------------------------------------------------
-    // 3. PATCH back to Airtable
-    //-----------------------------------------------------
-    const patchURL = `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}/${userRecordId}`;
-
-    await fetch(patchURL, {
-      method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${AIRTABLE_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        fields: {
-          "Login History": JSON.stringify(history)
-        }
-      })
+    const getRes = await fetch(getUrl, {
+        headers: { Authorization: `Bearer ${apiKey}` }
     });
 
-    console.log("📝 Activity Logged:", activityEvent);
+    console.log("📡 GET STATUS:", getRes.status);
 
-  } catch (err) {
-    console.error("❌ logActivity ERROR:", err);
-  }
+    if (!getRes.ok) {
+        console.warn("❌ GET failed — cannot log activity.");
+        return;
+    }
+
+    const getJson = await getRes.json();
+    console.log("📦 GET JSON:", getJson);
+
+    // STEP 2 — Read "Login History"
+    try {
+        const rawHistory = JSON.parse(getJson.fields["Login History"] || "[]");
+
+        // Backward compatibility: convert old timestamp-only entries to objects
+        history = rawHistory.map(ev => {
+            if (typeof ev === "string") {
+                return { timestamp: ev, type: "Login", details: "" };
+            }
+            return ev;
+        });
+
+    } catch {
+        history = [];
+    }
+
+    // STEP 3 — Add new structured activity object
+    const newEntry = {
+        timestamp,
+        type: activityType,   // e.g., "Login" or "Takeoff Import"
+        details: details      // extra info (e.g., takeoff name)
+    };
+
+    history.push(newEntry);
+
+    console.log("📌 New Activity Entry:", newEntry);
+    console.log("📚 Updated History Array:", history);
+
+    // STEP 4 — PATCH updated history
+    const patchUrl =
+        `https://api.airtable.com/v0/${baseId}/${tableId}/${userRecordId}`;
+
+    const patchBody = {
+        fields: {
+            "Last Activity": timestamp,
+            "Activity Type": activityType,
+            "Login History": JSON.stringify(history)
+            // ❗ DO NOT INCLUDE email (synced)
+        }
+    };
+
+    console.log("📤 PATCH Payload:", patchBody);
+
+    const patchRes = await fetch(patchUrl, {
+        method: "PATCH",
+        headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(patchBody)
+    });
+
+    console.log("📡 PATCH STATUS:", patchRes.status);
+    const patchJson = await patchRes.json();
+    console.log("📦 PATCH JSON:", patchJson);
+
+    if (!patchRes.ok) {
+        console.warn("❌ PATCH failed — activity NOT saved.");
+        return;
+    }
+
+    console.log("✅ Activity logged successfully:", newEntry);
 }

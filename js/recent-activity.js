@@ -54,40 +54,83 @@ document.addEventListener("DOMContentLoaded", async () => {
   //-----------------------------------------------------
   console.log("🔍 Parsing activity logs...");
 
-  for (const u of users) {
-    const f = u.fields;
-    const name = f["Full Name"] || "Unknown User";
-    const email = f["Email"] || "";
+// -------------------------------------------------------
+// Parse Login History (Handles BOTH old + new formats)
+// -------------------------------------------------------
+for (const u of users) {
+  const f = u.fields;
+  const name = f["Full Name"] || "Unknown User";
+  const email = f["Email"] || "";
 
-    let raw = f["Login History"];
+  let raw = f["Login History"];
+  if (!raw) continue;
 
-    if (!raw) continue;
+  let parsed = [];
+  try {
+    parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) parsed = [];
+  } catch (e) {
+    console.error("❌ Bad JSON for", name, raw);
+    continue;
+  }
 
-    let parsed = [];
-    try {
-      parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) parsed = [];
-    } catch (e) {
-      console.error("❌ Bad JSON for", name, raw);
+  for (const ev of parsed) {
+    console.log("🔎 Raw activity object:", ev);
+
+    // ---------------------------------------------------
+    // HANDLE OLD RAW STRING TIMESTAMP ENTRIES
+    // (Your old Takeoff Import logs)
+    // ---------------------------------------------------
+    if (typeof ev === "string") {
+      console.warn("♻ Converting old-style entry:", ev);
+
+      const d = new Date(ev);
+      if (!isNaN(d)) {
+        activityEvents.push({
+          user: name,
+          email,
+          action: "Takeoff Import",
+          details: {
+            takeoffName: "",
+            plan: "",
+            elevation: "",
+            revision: ""
+          },
+          ts: d.getTime(),
+          d,
+        });
+      }
+      continue; 
+    }
+
+    // ---------------------------------------------------
+    // HANDLE NEW STRUCTURED LOGS
+    // Must contain a timestamp
+    // ---------------------------------------------------
+    if (!ev.timestamp) {
+      console.warn("⛔ Skipped - Missing timestamp:", ev);
       continue;
     }
 
-    for (const ev of parsed) {
-      if (!ev.timestamp) continue;
+    const d = new Date(ev.timestamp);
+    if (isNaN(d)) continue;
 
-      const d = new Date(ev.timestamp);
-      if (isNaN(d)) continue;
-
-      activityEvents.push({
-        user: name,
-        email,
-        action: ev.type || "Unknown",
-        details: ev.details || ev.takeoffName || ev.newValue || "",
-        ts: d.getTime(),
-        d,
-      });
-    }
+    activityEvents.push({
+      user: name,
+      email,
+      action: ev.type || "Unknown",
+      details: ev.details || {
+        takeoffName: "",
+        plan: "",
+        elevation: "",
+        revision: ""
+      },
+      ts: d.getTime(),
+      d,
+    });
   }
+}
+
 
   //-----------------------------------------------------
   // If empty — render "no activity"
@@ -163,8 +206,16 @@ document.addEventListener("DOMContentLoaded", async () => {
         return `User '${ev.user}' logged in.`;
       case "Logout":
         return `User '${ev.user}' logged out.`;
-      case "Takeoff Import":
-        return `Imported takeoff '${ev.details}'`;
+     case "Takeoff Import": {
+    const d = ev.details || {};
+    return `
+      Imported takeoff '${d.takeoffName || ""}' 
+      (Plan: ${d.plan || "N/A"}, 
+       Elevation: ${d.elevation || "N/A"}, 
+       Rev: ${d.revision || "N/A"})
+    `;
+}
+
       case "Takeoff Update":
         return `Updated takeoff '${ev.details}'`;
       case "Plan Updated":

@@ -95,33 +95,37 @@ document.addEventListener("DOMContentLoaded", () => {
       // ---------------------------
       // Password comparison
       // ---------------------------
-      if (storedPassword === password.trim()) {
-        console.log("✅ Password match for:", user.email);
+if (storedPassword === password.trim()) {
+  console.log("✅ Password match for:", user.email);
 
-        localStorage.setItem("loggedInUser", user.email);
-        localStorage.setItem("userRecordId", record.id);
+  // 🌟 CRITICAL: Save EXACT Airtable ID
+  localStorage.setItem("loggedInUser", user.email);
+  localStorage.setItem("userRecordId", record.id);
 
-        console.log("💾 Session stored → redirecting...");
-        // ------------------------------
-// ---------------------------------------------
-// NEW: Log Login Event Using activity-logger.js
-// ---------------------------------------------
-await logActivity({
-  type: "Login"
-});
+  console.log("💾 Stored record.id in localStorage:", record.id);
 
-console.log("📝 Login event logged to Airtable.");
+  // Log login activity
+  try {
+await logActivity("Login");
+    console.log("📝 Login event logged to Airtable.");
+  } catch (err) {
+    console.error("⚠️ Failed to log login activity:", err);
+  }
 
+  // Redirect
+  setTimeout(() => {
+    window.location.href = "index.html";
+  }, 3000);
 
-setTimeout(() => {
-  window.location.href = "index.html";
-}, 3000);
+  return;
+}
 
-      } else {
-        console.warn("❌ Password mismatch. Entered:", password, "Expected:", storedPassword);
-        errorMsg.textContent = "Invalid password.";
-        errorMsg.classList.remove("hidden");
-      }
+// ❌ STOP if password mismatch
+console.warn("❌ Password mismatch.");
+errorMsg.textContent = "Invalid password.";
+errorMsg.classList.remove("hidden");
+return;   // <<< THIS WAS MISSING
+
 
     } catch (err) {
       console.error("🔥 Login error:", err);
