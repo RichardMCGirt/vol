@@ -3,6 +3,7 @@
 // Supports: Plan + Elevation unique naming, revision logic,
 // estimator lookup, JSON import, user activity logging.
 // ====================================================================
+import { fetchDropboxToken, uploadFileToDropbox } from "./dropbox.js";
 
 // ===== CONFIG =====
 const EAIRTABLE_API_KEY = "pat6QyOfQCQ9InhK4.4b944a38ad4c503a6edd9361b2a6c1e7f02f216ff05605f7690d3adb12c94a3c";
@@ -311,7 +312,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // --------------------------------------------------------------
         // UPLOAD TAKEOFF RECORD
         // --------------------------------------------------------------
-        await uploadRow(
+   await uploadRow(
     {
         fields: {
             "Takeoff Name": finalTakeoffName,
@@ -320,10 +321,12 @@ document.addEventListener("DOMContentLoaded", () => {
             "Revision #": revision
         }
     },
-    takeoffName,   // plan only
+    takeoffName,   // plan
     elevation,     // elevation
-    revision       // revision #
+    revision,      // revision #
+    file           // <<< add this
 );
+
 
 
         alert("✅ Takeoff import complete!");
@@ -333,9 +336,10 @@ document.addEventListener("DOMContentLoaded", () => {
 // ====================================================================
 // ▶ UPLOAD RECORD TO AIRTABLE
 // ====================================================================
-async function uploadRow(payload, takeoffName, elevation, revision) {
+async function uploadRow(payload, takeoffName, elevation, revision, originalFile) {
     const url = `https://api.airtable.com/v0/${EBASE_ID}/${ETABLE_ID}`;
 
+    // 1️⃣ Create the Airtable record first
     const res = await fetch(url, {
         method: "POST",
         headers: {
@@ -350,13 +354,59 @@ async function uploadRow(payload, takeoffName, elevation, revision) {
         return;
     }
 
-    console.log("✅ Row uploaded successfully");
+    const record = await res.json();
+    const recordId = record.id;
+    console.log("✅ Airtable row created:", recordId);
 
-logTakeoffImportActivity(
-    payload.fields["Takeoff Name"],  // takeoffName
-    takeoffName,                    // plan
-    elevation,                      // elevation
-    revision                        // revision #
-)
-        .catch(err => console.warn("⚠️ Activity logging failed:", err));
+    // 2️⃣ Upload original file to Dropbox
+    const dropboxCreds = await fetchDropboxToken();
+    if (!dropboxCreds) {
+        console.error("❌ No Dropbox credentials available");
+        return;
+    }
+
+    const publicUrl = await uploadFileToDropbox(
+        originalFile,
+        dropboxCreds.token,
+        dropboxCreds
+    );
+
+    if (!publicUrl) {
+        console.error("❌ Could not upload file to Dropbox");
+        return;
+    }
+
+    console.log("📎 Dropbox File URL:", publicUrl);
+
+    // 3️⃣ Patch Airtable record with attachment
+    const attachPatchUrl = `https://api.airtable.com/v0/${EBASE_ID}/${ETABLE_ID}/${recordId}`;
+
+    await fetch(attachPatchUrl, {
+        method: "PATCH",
+        headers: {
+            Authorization: `Bearer ${EAIRTABLE_API_KEY}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            fields: {
+                "Takeoff Template": [
+                    {
+                        url: publicUrl,
+                        filename: originalFile.name
+                    }
+                ]
+            }
+        })
+    });
+
+    console.log("📎 Attachment added to Airtable!");
+
+    // 4️⃣ Log activity (no change)
+    logTakeoffImportActivity(
+        payload.fields["Takeoff Name"],
+        takeoffName,
+        elevation,
+        revision
+    ).catch(err => console.warn("⚠️ Activity logging failed:", err));
 }
+

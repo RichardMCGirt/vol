@@ -291,21 +291,41 @@
 
       </div>
     </div>
-  </main>
+</main>
+</main>
+
+<script>
+window.env = {
+    AIRTABLE_API_KEY: 'patXTUS9m8os14OO1.6a81b7bc4dd88871072fe71f28b568070cc79035bc988de3d4228d52239c8238',
+    AIRTABLE_BASE_ID: 'appO21PVRA4Qa087I',
+    AIRTABLE_TABLE_NAME: 'tbl6EeKPsNuEvt5yJ',
+    AIRTABLE_TABLE_NAME2: 'tbl9SgC5wUi2TQuF7',
+};
+</script>
+
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-<script src="js/takeoffexport.js"></script>
+<script type="module" src="js/takeoffexport.js"></script>
+
+<script type="module" src="js/nav.js"></script>
+<script type="module" src="js/auth.js"></script>
+<script type="module" src="js/filters.js"></script>
+<script type="module" src="js/populatetakeoff.js"></script>
+<script type="module" src="js/dropbox.js"></script>
+
+</body>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+<!-- Your takeoff importer must be a module -->
+<script type="module" src="js/takeoffexport.js"></script>
 
 <!-- MODULE SCRIPTS -->
 <script type="module" src="js/nav.js"></script>
 <script type="module" src="js/auth.js"></script>
 <script type="module" src="js/filters.js"></script>
 <script type="module" src="js/populatetakeoff.js"></script>
-
-<!-- REMOVE THIS (DO NOT LOAD AS SCRIPT)
-<script src="js/activity-logger.js"></script>
--->
-
-
+<script type="module" src="js/dropbox.js"></script>
 
 </body>
+
 </html>
