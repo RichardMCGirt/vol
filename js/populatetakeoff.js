@@ -166,7 +166,7 @@ async function loadExistingTakeoff(recId) {
   });
 
   if (!res.ok) {
-    console.error("Failed to load existing takeoff");
+    console.error("❌ Failed to load existing takeoff");
     return;
   }
 
@@ -184,10 +184,50 @@ async function loadExistingTakeoff(recId) {
   // Show line items section
   revealLineItemsSection();
 
-  // Load SKU JSON (SKU table record)
-  if (Array.isArray(f["Takeoff Creation"]) && f["Takeoff Creation"].length > 0) {
-    loadSkuJsonRecord(f["Takeoff Creation"][0]);
-  }
+  // 🔥 Load the UPDATED JSON from Airtable
+  // Load the updated Imported JSON instead of old SKU table
+if (f["Imported JSON"]) {
+    try {
+        const json = JSON.parse(f["Imported JSON"]);
+        console.log("📦 Loaded Imported JSON with", json.length, "rows");
+        populateLineItemsFromJson(json);
+    } catch (err) {
+        console.error("❌ Failed to parse Imported JSON:", err);
+    }
+}
+
+}
+
+function populateLineItemsFromJson(jsonArray) {
+    console.log("🔄 Populating line items from Imported JSON…");
+
+    const tbody = document.querySelector("#line-item-body");
+    tbody.innerHTML = "";
+
+    jsonArray.forEach((item, index) => {
+        const row = document.createElement("tr");
+        row.classList.add("border-b");
+
+        row.innerHTML = `
+            <td><input class="sku-input w-full" value="${item.SKU || ""}"></td>
+            <td><input class="desc-input w-full" value="${item.Description || ""}"></td>
+            <td><input class="uom-input w-full" value="${item.UOM || ""}"></td>
+            <td><input class="mat-input w-full" value="${item["Description 2 (ex-color)"] || ""}"></td>
+            <td><input class="color-input w-full" value="${item["Color Group"] || ""}"></td>
+            <td><input class="vendor-input w-full" value="${item.Vendor || ""}"></td>
+
+            <td><input class="qty-input w-full" type="number" value="${item.QTY ?? 1}"></td>
+
+            <td><input class="cost-input w-full" type="number" value="${item["Unit Cost"] ?? 0}"></td>
+            <td><input class="total-cost-input w-full" type="number" value="${item["Total Cost"] ?? 0}"></td>
+
+            <td><button class="delete-row-btn text-red-500">🗑</button></td>
+        `;
+
+        tbody.appendChild(row);
+    });
+
+    console.log("✔ Line items successfully populated from JSON");
 }
 
 
@@ -859,7 +899,7 @@ async function createNewRevision(oldRecord, newJson, newRevision) {
         "Elevation": fields["Elevation"],
         "Community": fields["Community"],
         "Status": "Draft",
-        "Revision": newRevision,
+        "Revision #": newRevision,
         "Imported JSON": JSON.stringify(newJson)
     };
 
@@ -878,41 +918,87 @@ async function createNewRevision(oldRecord, newJson, newRevision) {
 
 // 5. UPDATE PRICING IN JSON
 function updateJsonPricing(importedJson, priceMap) {
-    let anyChange = false;
+    console.group("📦 updateJsonPricing() Debug");
+    console.log("➡ importedJson received:", importedJson);
+    console.log("➡ priceMap received:", priceMap);
 
-    importedJson.forEach(item => {
-        const sku = (item.SKU || "").trim();
-        const vendor = (item.Vendor || "").trim().toLowerCase();
-        const qty = Number(item.QTY || item.Qty || 0);
+    if (!Array.isArray(importedJson)) {
+        console.error("❌ importedJson is NOT an array:", importedJson);
+        console.groupEnd();
+        return null;
+    }
+    if (!priceMap || typeof priceMap !== "object") {
+        console.error("❌ priceMap is invalid:", priceMap);
+        console.groupEnd();
+        return null;
+    }
 
-        if (!sku || !vendor) return;
+    const updated = [];
 
-        const sheetEntry = priceMap[sku];
-        if (!sheetEntry) return;
+    importedJson.forEach((row, idx) => {
+        console.group(`SKU Row #${idx}`, row);
 
-        if (sheetEntry.vendor !== vendor) return;
+        const sku = row.SKU || row["sku"] || row["Sku"] || null;
 
-        const oldCost = Number(item["Unit Cost"] || 0);
-        const newCost = Number(sheetEntry.price || sheetEntry.unitCost || 0);
+        console.log("🔍 Row SKU:", sku);
 
-        if (oldCost !== newCost) {
-            item.__priceChanged = true;
-            item.__oldCost = oldCost;
-            item.__newCost = newCost;
-            item.__sku = sku;
-            item.__vendor = vendor;
-            item.__qty = qty;
-
-            anyChange = true;
+        if (!sku) {
+            console.warn("⚠ Missing SKU — row skipped.");
+            updated.push(row);
+            console.groupEnd();
+            return;
         }
 
-        // apply changes
-        item["Unit Cost"] = newCost;
-        item["Total Cost"] = qty * newCost;
+        const priceEntry = priceMap[sku];
+
+        console.log("🔍 priceMap lookup result:", priceEntry);
+
+        if (!priceEntry) {
+            console.log("ℹ No price found for SKU → no change.");
+            row.__priceChanged = false;
+            updated.push(row);
+            console.groupEnd();
+            return;
+        }
+
+        const oldCost = Number(row["Unit Cost"] || 0);
+const newCost = Number(
+    priceEntry.price ??
+    priceEntry.Price ??
+    priceEntry.cost ??
+    priceEntry.Cost ??
+    0
+);
+
+        console.log(`💲 oldCost:${oldCost} → newCost:${newCost}`);
+
+       if (oldCost !== newCost) {
+    console.log("✨ PRICE CHANGED!");
+    row.__priceChanged = true;
+
+    row.__sku = sku;
+    row.__vendor = priceEntry.vendor;
+    row.__qty = row.QTY ?? row.qty ?? row["Qty"];
+
+    row.__oldCost = oldCost;
+    row.__newCost = newCost;
+
+    row["Unit Cost"] = newCost;
+} else {
+    row.__priceChanged = false;
+}
+
+
+        updated.push(row);
+        console.groupEnd();
     });
 
-    return anyChange ? importedJson : null;
+    console.log("📦 updateJsonPricing() FINAL OUTPUT:", updated);
+    console.groupEnd();
+
+    return updated;
 }
+
 
 // ===================== PROGRESS MODAL CONTROL =====================
 function showProgressModal() {
@@ -952,52 +1038,87 @@ function updateProgressUI(current, total, skuCurrent, skuTotal, startTime) {
 // MAIN BUTTON HANDLER
 // ------------------------------------------------------------
 document.addEventListener("DOMContentLoaded", () => {
+    console.log("🔵 DOM Loaded → Pricing Update Handler Ready");
 
     const updateBtn = document.querySelector("#update-pricing-btn");
-    if (!updateBtn) return;
+    if (!updateBtn) {
+        console.warn("⚠️ No #update-pricing-btn found.");
+        return;
+    }
 
     updateBtn.addEventListener("click", async () => {
+        console.log("\n=============================");
+        console.log("🟦 UPDATE PRICING CLICKED");
+        console.log("=============================\n");
+
+        console.log("📌 getSelectedTakeoffs() returned:", getSelectedTakeoffs());
+
+        console.log("📌 All checkboxes detected:", 
+            document.querySelectorAll(".takeoff-select-checkbox")
+        );
 
         const selected = getSelectedTakeoffs();
         if (!selected.length) {
+            console.warn("❗ No takeoffs selected.");
             alert("❗ Select at least one takeoff first.");
             return;
         }
 
+        console.log(`📦 ${selected.length} takeoff(s) selected:`, selected);
+
         // ------------------------------
         // Show progress modal
         // ------------------------------
+        console.log("📤 Showing progress modal...");
         showProgressModal();
 
-        // Load pricing from Google Sheet (CSV)
+        // Load pricing from Google Sheet
+        console.log("📄 Loading CSV → price map...");
         const priceMap = await loadSkuPricingFromExcel();
+
         if (!priceMap) {
             hideProgressModal();
+            console.error("❌ loadSkuPricingFromExcel() returned:", priceMap);
             alert("❌ Could not load live pricing sheet.");
             return;
         }
+
+        console.log("📄 CSV → Price Map loaded successfully:", priceMap);
+
         let startTime = Date.now();
 
         // ---------------------------------------------------
-        // PROCESS EACH SELECTED TAKEOFF ONE BY ONE
+        // MAIN TAKEOFF LOOP
         // ---------------------------------------------------
         for (let i = 0; i < selected.length; i++) {
+            console.log("\n-------------------------------------");
+            console.log(`▶ Processing takeoff #${i + 1} of ${selected.length}`);
+            console.log("-------------------------------------");
 
             const recordId = selected[i];
+            console.log("📌 Current Record ID:", recordId);
 
-            // UI progress update
             updateProgressUI(i + 1, selected.length, 0, 0, startTime);
 
-            // Fetch the takeoff's data
+            // Fetch takeoff from Airtable
+            console.log("📡 Fetching takeoff JSON:", recordId);
             const existing = await fetchTakeoffJson(recordId);
+
             if (!existing) {
-                console.warn(`⚠️ Could not fetch takeoff ${recordId}`);
+                console.warn(`⚠️ fetchTakeoffJson(${recordId}) returned null`);
                 continue;
             }
+
+            console.log("📥 Takeoff fetched:", existing);
 
             const fields = existing.fields;
             const takeoffName = fields["Takeoff Name"] || "Untitled Takeoff";
 
+            console.log(`📄 Takeoff Name: ${takeoffName}`);
+            console.log("📄 Revision #:", fields["Revision #"]);
+            console.log("📄 Imported JSON length:", (fields["Imported JSON"] || "[]").length);
+
+            // Parse JSON safely
             let importedJson = [];
             try {
                 importedJson = JSON.parse(fields["Imported JSON"] || "[]");
@@ -1006,69 +1127,65 @@ document.addEventListener("DOMContentLoaded", () => {
                 continue;
             }
 
-            // SKU progress inside JSON
+            console.log(`📘 Imported JSON parsed. SKUs: ${importedJson.length}`);
+
             const skuTotal = importedJson.length;
 
-            // Update pricing inside each row
-          const updatedJson = updateJsonPricing(importedJson, priceMap);
+            // Update JSON pricing
+            console.log("🔄 Running updateJsonPricing()...");
+            const updatedJson = updateJsonPricing(importedJson, priceMap);
 
-// --- NEW SAFE GUARD ---
-if (!updatedJson || !Array.isArray(updatedJson)) {
-    console.warn(`⚠ updateJsonPricing() returned null for ${takeoffName} — skipping revision.`);
-    continue;
-}
-// ------------------------
+            console.log("🔍 updateJsonPricing() result:", updatedJson);
 
-const changesDetected = updatedJson.some(item => item.__priceChanged === true);
-const changedSkus = updatedJson.filter(i => i.__priceChanged);
+            if (!updatedJson || !Array.isArray(updatedJson)) {
+                console.warn(`⚠ updateJsonPricing() returned invalid data — skipping ${takeoffName}`);
+                continue;
+            }
 
-console.group(`Changes for ${takeoffName}`);
-changedSkus.forEach(item => {
-    console.log(
-        `${item.__sku} — vendor: ${item.__vendor}`
-        + ` | old: ${item.__oldCost}`
-        + ` → new: ${item.__newCost}`
-        + ` | qty: ${item.__qty}`
-    );
-});
-console.groupEnd();
+            const changesDetected = updatedJson.some(item => item.__priceChanged === true);
+            console.log("📌 changesDetected:", changesDetected);
 
-if (!changesDetected) {
-    console.log(`📭 No pricing differences for ${takeoffName} — no revision created.`);
-    continue;
-}
+            const changedSkus = updatedJson.filter(i => i.__priceChanged);
+            console.group(`🔎 SKU Price Changes for ${takeoffName}`);
+            changedSkus.forEach(item => {
+                console.log(
+                    `SKU: ${item.__sku} | Vendor: ${item.__vendor} | `
+                    + `Old: ${item.__oldCost} → New: ${item.__newCost} | `
+                    + `Qty: ${item.__qty}`
+                );
+            });
+            console.groupEnd();
 
+            if (!changesDetected) {
+                console.log(`📭 No pricing differences in ${takeoffName} → No revision created.`);
+                continue;
+            }
 
-            // ------------------------------------------------------------------
-            // If changes WERE detected → CREATE NEW REVISION RECORD
-            // ------------------------------------------------------------------
-const oldRevision = Number(fields["Revision #"] || 0);
+            // Create new revision
+            const oldRevision = Number(fields["Revision #"] || 0);
             const newRevision = oldRevision + 1;
 
-            console.log(
-                `💾 Creating revision ${newRevision} for takeoff ${takeoffName}`
-            );
+            console.log(`💾 Preparing to create revision ${newRevision} for ${takeoffName}`);
 
-            await createNewRevision(existing, updatedJson, newRevision);
+            const result = await createNewRevision(existing, updatedJson, newRevision);
 
-            // Update progress UI (SKUs)
+            console.log("📡 createNewRevision() response:", result);
+
+            // Update SKU progress
             for (let s = 0; s < skuTotal; s++) {
-                updateProgressUI(
-                    i + 1,
-                    selected.length,
-                    s + 1,
-                    skuTotal,
-                    startTime
-                );
+                updateProgressUI(i + 1, selected.length, s + 1, skuTotal, startTime);
             }
+
+            console.log(`✔ Finished updating ${takeoffName}`);
         }
 
-        // All takeoffs done
+        console.log("\n🎉 All takeoffs processed.\n");
+
         hideProgressModal();
-        alert("✅ Pricing updated and revisions created successfully.");
-        location.reload();
+
     });
 });
+
 
 function groupRevisions(records) {
     const groups = {};

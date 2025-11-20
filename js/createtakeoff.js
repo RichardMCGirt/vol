@@ -71,6 +71,38 @@ elevationSelect.addEventListener("change", () => {
 
     setTimeout(() => loadExistingTakeoff(editingId), 900);
 }
+function addLineItemFromJson(item) {
+    const row = document.createElement("tr");
+
+    row.innerHTML = `
+<td><input class="sku-input w-full" value="${item.SKU || ""}"></td>
+<td><input class="desc-input w-full" value="${item.Description || ""}"></td>
+<td><input class="uom-input w-full" value="${item.UOM || ""}"></td>
+<td><input class="mat-input w-full" value="${item["Description 2 (ex-color)"] || ""}"></td>
+<td><input class="color-input w-full" value="${item["Color Group"] || ""}"></td>
+<td><input class="vendor-input w-full" value="${item.Vendor || ""}"></td>
+
+<td><input class="qty-input w-full" type="number" value="${item.QTY ?? 1}"></td>
+
+<td><input class="cost-input w-full" type="number" value="${item["Unit Cost"] ?? 0}"></td>
+<td><input class="mult-input w-full" type="number" value="${item.mult ?? 1}"></td>
+<td><input class="extcost-input w-full" type="number" value="${item["Total Cost"] ?? 0}" readonly></td>
+
+<td><input class="percent-input w-full" type="number" value="${item.margin ?? 0}"></td>
+<td><input class="total-input w-full" type="number" value="${item["Total Quoted Price:"] ?? 0}" readonly></td>
+
+<td class="text-center"><button class="remove-line text-red-500">🗑️</button></td>
+    `;
+
+    lineItemBody.appendChild(row);
+
+    enableVendorClickDropdown(row.querySelector(".vendor-input"));
+    attachAutocomplete(row.querySelector(".sku-input"), "sku");
+    attachCalculators(row);
+
+    row.querySelector(".remove-line").addEventListener("click", () => row.remove());
+}
+
 async function loadEstimators() {
     let offset = null;
     let all = [];
@@ -256,41 +288,75 @@ function revealLineItemsSection() {
   window.skuData = parsed;
 
 }
+async function loadSkuJsonRecord(recordId) {
+    console.log("📦 Loading SKU JSON record:", recordId);
+
+    const url = `https://api.airtable.com/v0/${BASE_ID}/${TABLE_JSON}/${recordId}`;
+
+    const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${AIRTABLE_API_KEY}` }
+    });
+
+    if (!res.ok) {
+        console.error("❌ Failed to load SKU JSON record:", await res.text());
+        return;
+    }
+
+    const data = await res.json();
+    let items = [];
+
+    try {
+        items = JSON.parse(data.fields["JSON"] || "[]");
+    } catch (e) {
+        console.error("❌ JSON parse error:", e);
+        return;
+    }
+
+    console.log("📄 Loaded JSON items:", items.length);
+
+    // Clear existing rows
+    const lineItemBody = document.getElementById("line-item-body");
+    lineItemBody.innerHTML = "";
+
+    // LOAD JSON INTO TABLE
+    items.forEach(item => addLineItemFromJson(item));
+}
 
   // ==========================================================
   // ADD BLANK LINE
   // ==========================================================
-function addLineItem() {
+function addLineItemFromJson(item) {
     const row = document.createElement("tr");
+
     row.innerHTML = `
-<td><input class="sku-input w-full" value=""></td>
-<td><input class="desc-input w-full" value=""></td>
-<td><input class="uom-input w-full" value=""></td>
-<td><input class="mat-input w-full" value=""></td>
-<td><input class="color-input w-full" value=""></td>
-<td><input class="vendor-input w-full" value=""></td>
-<td><input class="qty-input w-full" type="number" value="1"></td>
-<td><input class="cost-input w-full" type="number" value=""></td>
+<td><input class="sku-input w-full" value="${item.SKU || ""}"></td>
+<td><input class="desc-input w-full" value="${item.Description || ""}"></td>
+<td><input class="uom-input w-full" value="${item.UOM || ""}"></td>
+<td><input class="mat-input w-full" value="${item["Material Type"] || ""}"></td>
+<td><input class="color-input w-full" value="${item["Color Group"] || ""}"></td>
+<td><input class="vendor-input w-full" value="${item.Vendor || ""}"></td>
+<td><input class="qty-input w-full" type="number" value="${item.QTY || 1}"></td>
+<td><input class="cost-input w-full" type="number" value="${item["Unit Cost"] || 0}"></td>
 <td><input class="mult-input w-full" type="number" value="1"></td>
-<td><input class="extcost-input w-full" type="number" value="" readonly></td>
+<td><input class="extcost-input w-full" type="number" value="${item["Total Cost"] || 0}" readonly></td>
 <td><input class="percent-input w-full" type="number" value="0"></td>
-<td><input class="total-input w-full" type="number" value="" readonly></td>
+<td><input class="total-input w-full" type="number" value="${item["Total Cost"] || 0}" readonly></td>
 <td class="text-center"><button class="remove-line text-red-500">🗑️</button></td>
     `;
 
-    lineItemBody.appendChild(row);
-enableVendorClickDropdown(row.querySelector(".vendor-input"));
+    document.getElementById("line-item-body").appendChild(row);
 
     attachAutocomplete(row.querySelector(".sku-input"), "sku");
     attachCalculators(row);
-
-    row.querySelector(".remove-line").addEventListener("click", () => row.remove());
     enableVendorClickDropdown(row.querySelector(".vendor-input"));
 
-        updateGrandTotal();   
+    row.querySelector(".remove-line").addEventListener("click", () => {
+        row.remove();
+        updateGrandTotal();
+    });
 
+    updateGrandTotal();
 }
-
 
   if (addLineItemBtn) addLineItemBtn.addEventListener("click", addLineItem);
 
@@ -746,6 +812,11 @@ async function doesTakeoffAlreadyExist(takeoffName) {
 
 async function saveTakeoff() {
     console.log("💾 Saving Takeoff…");
+// Pull dropdown fields again for saving
+const builderSelect = document.getElementById("builder-select");
+const planSelect = document.getElementById("plan-select");
+const elevationSelect = document.getElementById("elevation-select");
+const communitySelect = document.getElementById("community-select");
 
     // --------------------------------------------
     // load takeoff id / edit state
