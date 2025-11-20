@@ -45,31 +45,38 @@ async function fetchEstimatorRecordId(name) {
 // ====================================================================
 // 🔢 REVISION LOGIC — GET NEXT REVISION NUMBER
 // ====================================================================
-async function getNextRevision(finalTakeoffName) {
-    const filter = encodeURIComponent(`{Takeoff Name} = "${finalTakeoffName}"`);
-    const url = `https://api.airtable.com/v0/${EBASE_ID}/${ETABLE_ID}?filterByFormula=${filter}`;
+async function getNextRevision(takeoffName, elevation) {
+    console.log("🔍 Checking revisions for:", takeoffName, "| Elevations:", elevation);
 
-    console.log("🔍 Checking existing revisions for:", finalTakeoffName);
+    // Airtable formula checks BOTH fields
+    const filter = encodeURIComponent(
+        `AND({Takeoff Name} = "${takeoffName}", {Elevations} = "${elevation}")`
+    );
+
+    const url = `https://api.airtable.com/v0/${EBASE_ID}/${ETABLE_ID}?filterByFormula=${filter}`;
 
     const res = await fetch(url, {
         headers: { Authorization: `Bearer ${EAIRTABLE_API_KEY}` }
     });
 
     const json = await res.json();
+
     if (!json.records || !json.records.length) {
-        console.log("🆕 No existing takeoff — Revision = 1");
+        console.log("🆕 No existing matching takeoff — starting Revision = 1");
         return 1;
     }
 
     let max = 0;
+
     json.records.forEach(r => {
         const rev = Number(r.fields["Revision #"] || 0);
         if (rev > max) max = rev;
     });
 
-    console.log("🔢 Next Revision #:", max + 1);
+    console.log("🔢 Next Revision # =", max + 1);
     return max + 1;
 }
+
 
 // ====================================================================
 // 📝 LOG ACTIVITY — AUTO CREATE RECORD IF NEEDED
@@ -206,132 +213,202 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
     }
 
+    // ===========================
+    // MULTIPLE FILE IMPORT HANDLER
+    // ===========================
     fileInput.addEventListener("change", async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+        const files = Array.from(e.target.files);
+        if (!files.length) return;
 
-        console.log("📄 File selected:", file.name);
+        for (const file of files) {
+            await processTakeoffFile(file);
+        }
 
-        // --------------------------------------------------------------
-        // READ EXCEL FILE
-        // --------------------------------------------------------------
-        const data = await file.arrayBuffer();
-        const workbook = XLSX.read(data);
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        alert("✅ All takeoffs imported successfully!");
+    });
+});
 
-        // --------------------------------------------------------------
-        // EXTRACT ESTIMATOR
-        // --------------------------------------------------------------
-        let foundEstimatorValue = "";
+function scrapeElevation(raw) {
+    if (!raw) return "A";
 
-        if (sheet["N14"]?.v) {
-            foundEstimatorValue = sheet["N14"].v;
-        } else {
-            Object.keys(sheet).forEach(addr => {
-                const cell = sheet[addr];
-                if (cell?.v && typeof cell.v === "string") {
-                    if (cell.v.toLowerCase().includes("estim")) {
-                        foundEstimatorValue = cell.v;
-                    }
+    const text = raw.toString().trim();
+
+    // Extract first letter at start: C → "C 9 ft Ceiling"
+    const match = text.match(/^[A-Z]/i);
+    if (match) return match[0].toUpperCase();
+
+    return "A";
+}
+
+
+
+// ======================================================
+//  PROCESS ONE TAKEOFF FILE (REUSABLE FOR MULTIPLE FILES)
+// ======================================================
+async function processTakeoffFile(file) {
+    console.log("📄 Importing:", file.name);
+
+    // --------------------------------------------------------------
+    // READ EXCEL FILE
+    // --------------------------------------------------------------
+    const data = await file.arrayBuffer();
+    const workbook = XLSX.read(data);
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+window.lastSheet = sheet;   // <-- makes sheet accessible in the Console
+console.log("🧪 Debug sheet saved to window.lastSheet");
+
+    // --------------------------------------------------------------
+    // EXTRACT ESTIMATOR
+    // --------------------------------------------------------------
+    let foundEstimatorValue = "";
+
+    if (sheet["N14"]?.v) {
+        foundEstimatorValue = sheet["N14"].v;
+    } else {
+        Object.keys(sheet).forEach(addr => {
+            const cell = sheet[addr];
+            if (cell?.v && typeof cell.v === "string") {
+                if (cell.v.toLowerCase().includes("estim")) {
+                    foundEstimatorValue = cell.v;
                 }
-            });
-        }
-
-        console.log("📌 FINAL Estimator from sheet:", foundEstimatorValue);
-
-        const estimatorId = await fetchEstimatorRecordId(foundEstimatorValue);
-
-        // --------------------------------------------------------------
-        // EXTRACT PLAN NAME
-        // --------------------------------------------------------------
-        const TAKEOFF_CELLS = ["M16", "L16", "M15", "C14"];
-        let takeoffName = "";
-
-        for (const cell of TAKEOFF_CELLS) {
-            if (sheet[cell]?.v) {
-                takeoffName = sheet[cell].v.toString().trim();
-                break;
             }
-            if (sheet[cell]?.w) {
-                takeoffName = sheet[cell].w.toString().trim();
-                break;
-            }
+        });
+    }
+
+    console.log("📌 FINAL Estimator from sheet:", foundEstimatorValue);
+
+    const estimatorId = await fetchEstimatorRecordId(foundEstimatorValue);
+
+    // --------------------------------------------------------------
+    // EXTRACT PLAN NAME
+    // --------------------------------------------------------------
+    const TAKEOFF_CELLS = ["M16", "L16", "M15", "C14"];
+    let takeoffName = "";
+
+    for (const cell of TAKEOFF_CELLS) {
+        if (sheet[cell]?.v) {
+            takeoffName = sheet[cell].v.toString().trim();
+            break;
         }
-
-        console.log("📌 RAW PLAN NAME:", takeoffName);
-
-        // --------------------------------------------------------------
-        // EXTRACT ELEVATION
-        // --------------------------------------------------------------
-        const ELEVATION_CELLS = ["M18", "L18", "M19", "C16"];
-        let elevation = "";
-
-        console.log("🔎 Checking Elevation cells…");
-
-        for (const cell of ELEVATION_CELLS) {
-            if (sheet[cell]?.v) {
-                elevation = sheet[cell].v.toString().trim();
-                console.log(`🎯 Elevation found at ${cell}:`, elevation);
-                break;
-            } else {
-                console.log(`⚪ ${cell} empty or undefined`);
-            }
+        if (sheet[cell]?.w) {
+            takeoffName = sheet[cell].w.toString().trim();
+            break;
         }
+    }
 
-        if (!elevation) elevation = "A";
-        console.log("📌 FINAL ELEVATION:", elevation);
+    console.log("📌 RAW PLAN NAME:", takeoffName);
 
-        // --------------------------------------------------------------
-        // BUILD FINAL UNIQUE TAKEOFF NAME
-        // --------------------------------------------------------------
-        let finalTakeoffName = `${takeoffName} - ${elevation}`;
-        console.log("📌 FINAL TAKEOFF NAME (Plan + Elevation):", finalTakeoffName);
+    // --------------------------------------------------------------
+    // EXTRACT ELEVATION
+    // --------------------------------------------------------------
+const ELEVATION_CELLS = ["L17", "M17", "K17", "L18"]; 
+// --------------------------------------------------------------
+// EXTRACT ELEVATION (Excel cell L17)
+// --------------------------------------------------------------
+// --------------------------------------------------------------
+// EXTRACT ELEVATION EXACT (Excel cell L17)
+// --------------------------------------------------------------
+let elevation = "";
 
-        // --------------------------------------------------------------
-        // PARSE ROWS
-        // --------------------------------------------------------------
-        const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
-        const headers = rawRows[HEADER_ROW];
+if (sheet["L17"]?.v) {
+    elevation = sheet["L17"].v.toString().trim();
+} else if (sheet["L17"]?.w) {
+    elevation = sheet["L17"].w.toString().trim();
+} else {
+    console.warn("⚠️ Elevation not found in L17. Searching entire sheet…");
 
-        const parsedRows = rawRows
-            .slice(HEADER_ROW + 1)
-            .map((row) => {
-                const obj = {};
-                headers.forEach((h, i) => { obj[h] = row[i]; });
-                return obj;
-            })
-            .filter(r => isRowMeaningful(r));
+    for (const addr of Object.keys(sheet)) {
+        const cell = sheet[addr];
+        if (!cell?.v || typeof cell.v !== "string") continue;
 
-        console.log("📦 Meaningful rows:", parsedRows.length);
+        const text = cell.v.trim();
 
-        // --------------------------------------------------------------
-        // GET NEXT REVISION NUMBER
-        // --------------------------------------------------------------
-        const revision = await getNextRevision(finalTakeoffName);
+        // Match any elevation-like value
+        if (
+            text.includes("Ceiling") ||
+            /^[A-Z]\s*\d/.test(text) ||
+            /^Elevation/i.test(text)
+        ) {
+            elevation = text;
+            console.log("🔍 Fallback elevation found:", addr, text);
+            break;
+        }
+    }
+}
 
-        // --------------------------------------------------------------
-        // UPLOAD TAKEOFF RECORD
-        // --------------------------------------------------------------
-   await uploadRow(
+console.log("📌 FINAL ELEVATION EXACT:", elevation);
+
+
+// clean elevation into single letter
+
+console.log("📌 CLEANED ELEVATION:", elevation);
+console.log("📌 FINAL ELEVATION:", elevation);
+
+
+    console.log("📌 FINAL ELEVATION:", elevation);
+
+    // --------------------------------------------------------------
+    // BUILD FINAL UNIQUE TAKEOFF NAME
+    // --------------------------------------------------------------
+    let finalTakeoffName = `${takeoffName} - ${elevation}`;
+    console.log("📌 FINAL TAKEOFF NAME:", finalTakeoffName);
+
+    // --------------------------------------------------------------
+    // PARSE ROWS
+    // --------------------------------------------------------------
+    const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+    const headers = rawRows[HEADER_ROW];
+
+    const parsedRows = rawRows
+        .slice(HEADER_ROW + 1)
+        .map((row) => {
+            const obj = {};
+            headers.forEach((h, i) => { obj[h] = row[i]; });
+            return obj;
+        })
+        .filter(r => isRowMeaningful(r));
+
+    console.log("📦 Meaningful rows:", parsedRows.length);
+
+    // --------------------------------------------------------------
+    // GET NEXT REVISION NUMBER
+    // --------------------------------------------------------------
+const revision = await getNextRevision(takeoffName, elevation);
+
+    // --------------------------------------------------------------
+    // UPLOAD TAKEOFF RECORD
+    // --------------------------------------------------------------
+// DEBUG: expose values to window for console inspection
+window._lastElevation = elevation;
+window._lastPayload = {
+    "Takeoff Name": finalTakeoffName,
+    "Estimator": estimatorId ? [estimatorId] : [],
+    "Imported JSON": JSON.stringify(parsedRows),
+    "Revision #": revision,
+    "Elevations": elevation   // <- MUST be included so you can inspect it
+};
+window._lastUploadRow = {
+    payload: window._lastPayload,
+    plan: takeoffName,
+    elevation,
+    revision,
+    file
+};
+
+// === ORIGINAL UPLOAD CALL ===
+await uploadRow(
     {
-        fields: {
-            "Takeoff Name": finalTakeoffName,
-            "Estimator": estimatorId ? [estimatorId] : [],
-            "Imported JSON": JSON.stringify(parsedRows),
-            "Revision #": revision
-        }
+        fields: window._lastPayload   // <-- Use debug payload
     },
-    takeoffName,   // plan
-    elevation,     // elevation
-    revision,      // revision #
-    file           // <<< add this
+    takeoffName,
+    elevation,
+    revision,
+    file
 );
 
 
-
-        alert("✅ Takeoff import complete!");
-    });
-});
+    console.log(`✅ Finished importing: ${file.name}`);
+}
 
 // ====================================================================
 // ▶ UPLOAD RECORD TO AIRTABLE
