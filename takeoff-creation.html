@@ -102,108 +102,91 @@
       </div>
 
       <!-- Form -->
-      <section class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-        <div class="grid grid-cols-5 gap-4 mb-10">
-          <div>
-            <label class="text-xs text-gray-500 font-medium">Takeoff Name *</label>
-            <input
-  id="nameInput"
-  type="text"
-  placeholder="E.g., Spanish Style"
-  class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mt-1"
-/>
+     <!-- === IMPROVED TAKEOFF HEADER GRID === -->
+<div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-10">
 
-          </div>
-<label>Estimator</label>
-
-<select id="estimator-select" class="w-full">
-    <option value="">-- Select Estimator --</option>
-</select>
-
-<!-- User can still type a brand-new name -->
-
-
-
-          <div>
-            <label class="text-xs text-gray-500 font-medium">Takeoff Type *</label>
-            <select
-              id="takeoff-type"
-              class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mt-1 focus:outline-none focus:ring focus:ring-blue-100"
-            >
-              <option value="">Select</option>
-              <option value="Base">Base</option>
-              <option value="Option">Option</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="text-xs text-gray-500 font-medium">Builder *</label>
-            <select
-              id="builder-select"
-              class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mt-1 focus:outline-none focus:ring focus:ring-blue-100"
-            >
-              <option value="">Loading Builders...</option>
-            </select>
-          </div>
-
-         <div>
-  <label class="text-xs text-gray-500 font-medium">Plan *</label>
-  <div class="flex space-x-2 mt-1">
-    <select
-      id="plan-select"
-      class="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring focus:ring-blue-100"
-    >
-      <option value="">Select Plan</option>
-    </select>
-    <button
-      id="add-plan-btn"
-      type="button"
-      class="bg-blue-600 text-white text-xs px-3 py-2 rounded-md hover:bg-blue-700 shadow-sm"
-    >
-      + Add
-    </button>
-
-
-
+  <!-- Takeoff Name -->
+  <div class="col-span-1 lg:col-span-2">
+    <label class="form-label">Takeoff Name *</label>
+    <input
+      id="nameInput"
+      type="text"
+      class="form-input"
+      placeholder="e.g. Allendale - Alside Vinyl"
+    />
   </div>
-</div>
-<button id="savePlanElevation" type="button">Save Plan/Elevation</button>
 
-<button id="manual-save-btn" class="save-takeoff-btn">
-    💾 Save Takeoff
-</button>
-<div>
-  <label class="text-xs text-gray-500 font-medium">Elevation *</label>
-  <div class="flex space-x-2 mt-1">
-    <select
-      id="elevation-select"
-      class="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring focus:ring-blue-100"
-    >
-      <option value="">Select Elevation</option>
+  <!-- Estimator -->
+  <div>
+    <label class="form-label">Estimator</label>
+    <select id="estimator-select" class="form-input">
+      <option value="">-- Select Estimator --</option>
     </select>
-    <button
-      id="add-elevation-btn"
-      type="button"
-      class="bg-blue-600 text-white text-xs px-3 py-2 rounded-md hover:bg-blue-700 shadow-sm"
-    >
-      + Add
+  </div>
+
+  <!-- Takeoff Type -->
+  <div>
+    <label class="form-label">Takeoff Type *</label>
+    <select id="takeoff-type" class="form-input">
+      <option value="">Select</option>
+      <option value="Base">Base</option>
+      <option value="Option">Option</option>
+    </select>
+  </div>
+
+  <!-- Builder -->
+  <div>
+    <label class="form-label">Builder *</label>
+    <select id="builder-select" class="form-input">
+      <option value="">Select Builder</option>
+    </select>
+  </div>
+
+  <!-- Plan + Add -->
+  <div>
+    <label class="form-label">Plan *</label>
+    <div class="flex gap-2">
+      <select id="plan-select" class="form-input flex-1">
+        <option value="">Select Plan</option>
+      </select>
+      <button id="add-plan-btn" class="btn-blue-sm">+ Add</button>
+    </div>
+  </div>
+
+  <!-- Elevation + Add -->
+  <div>
+    <label class="form-label">Elevation *</label>
+    <div class="flex gap-2">
+      <select id="elevation-select" class="form-input flex-1">
+        <option value="">Select Elevation</option>
+      </select>
+      <button id="add-elevation-btn" class="btn-blue-sm">+ Add</button>
+    </div>
+  </div>
+
+  <!-- Save Buttons (right-align on large screens) -->
+  <div class="flex items-end gap-3 col-span-1 lg:col-span-1">
+    <button id="savePlanElevation" class="btn-gray-sm w-full">
+      Save Plan/Elevation
     </button>
   </div>
+
+  <div class="flex items-end col-span-1 lg:col-span-1">
+    <button id="manual-save-btn" class="btn-blue w-full">
+      💾 Save Takeoff
+    </button>
+  </div>
+
+  <!-- Community -->
+  <div class="col-span-1 md:col-span-3 lg:col-span-5">
+    <label class="form-label">Community *</label>
+    <select id="community-select" class="form-input">
+      <option value="">Select a builder first</option>
+    </select>
+  </div>
+
 </div>
 
-
-          <div class="col-span-5">
-            <label class="text-xs text-gray-500 font-medium">Community *</label>
-            <select
-              id="community-select"
-              class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mt-1 focus:outline-none focus:ring focus:ring-blue-100"
-            >
-              <option value="">Loading Communities...</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Placeholder Center Box -->
       <!-- Placeholder OR Line Items Container -->
 <div id="takeoff-content-container" class="mt-8">
   <!-- Placeholder (shown until fields are complete) -->

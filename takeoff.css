@@ -89,3 +89,28 @@
     color: #6b7280;
     margin-left: 10px;
 }
+/* --- Standardized Inputs & Labels --- */
+.form-label {
+  @apply text-xs text-gray-500 font-medium block mb-1;
+}
+
+.form-input {
+  @apply w-full border border-gray-300 rounded-md px-3 py-2 text-sm
+         focus:outline-none focus:ring focus:ring-blue-100;
+}
+
+/* --- Buttons --- */
+.btn-blue-sm {
+  @apply bg-blue-600 text-white text-xs px-3 py-2 rounded-md
+         hover:bg-blue-700 shadow-sm whitespace-nowrap;
+}
+
+.btn-blue {
+  @apply bg-blue-600 text-white text-sm px-4 py-2 rounded-md
+         hover:bg-blue-700 shadow-sm;
+}
+
+.btn-gray-sm {
+  @apply bg-gray-200 text-gray-700 text-xs px-3 py-2 rounded-md 
+         hover:bg-gray-300 shadow-sm whitespace-nowrap;
+}
