@@ -1,3 +1,6 @@
+import { logActivity } from "./activity-logger.js?cachebust=1";
+
+
 // ------------------------- CONFIG -------------------------
 const AIRTABLE_API_KEY = "pat6QyOfQCQ9InhK4.4b944a38ad4c503a6edd9361b2a6c1e7f02f216ff05605f7690d3adb12c94a3c";
 const BASE_ID = "appnZNCcUAJCjGp7L";
@@ -8,13 +11,12 @@ const TAKEOFFS_TABLE_ID = "tblYIxFxH2swiBZiI";   // Takeoffs (linked {Builder}, 
 
 // DOM elements (must exist in takeoff-creation.html)
 const builderSelect   = document.getElementById("builder-select");
-const planSelect      = document.getElementById("plan-select");
 const elevationSelect = document.getElementById("elevation-select");
-const saveBtn         = document.getElementById("savePlanElevation");
+const saveBtn         = document.getElementById("saveElevation");
 const communitySelect = document.getElementById("community-select");
 
 // Guards
-if (!builderSelect || !planSelect || !elevationSelect || !saveBtn || !communitySelect) {
+if (!builderSelect || !elevationSelect || !saveBtn || !communitySelect) {
   console.error("❌ Required elements not found in DOM. Check your IDs in takeoff-creation.html");
 }
 
@@ -178,26 +180,9 @@ async function populatePlanElevation(builderSelectEl) {
   ]);
 
   // Clear dropdowns
-  planSelect.innerHTML = "";
   elevationSelect.innerHTML = "";
 
-  // Populate Plans
-  if (plans.length === 0) {
-    console.warn("⚠️ No plans found to populate");
-    const opt = document.createElement("option");
-    opt.value = "";
-    opt.textContent = "No plans yet";
-    planSelect.appendChild(opt);
-  } else {
-    plans.forEach(p => {
-      const opt = document.createElement("option");
-      opt.value = p;
-      opt.textContent = p;
-      planSelect.appendChild(opt);
-      console.log(`📄 Added plan option: "${p}"`);
-    });
-  }
-
+  
   // Populate Elevations
   if (elevations.length === 0) {
     console.warn("⚠️ No elevations found to populate");
@@ -215,7 +200,7 @@ async function populatePlanElevation(builderSelectEl) {
     });
   }
 
-  console.log("✅ Dropdowns updated. Total options → Plans:", planSelect.options.length, "Elevations:", elevationSelect.options.length);
+  console.log("✅ Dropdowns updated. Total Elevations:", "Elevations:", elevationSelect.options.length);
   console.groupEnd();
 }
 
@@ -282,43 +267,6 @@ function createInlineInput(selectEl, placeholder, onSubmit) {
   });
 }
 
-// Plan selector behavior
-// Plan selector behavior + activity logging
-planSelect.addEventListener("change", async () => {
-
-  // CASE 1 — User chooses "__new__"
-  if (planSelect.value === "__new__") {
-    const newPlan = prompt("Enter new Plan name:");
-    if (newPlan && newPlan.trim()) {
-      const clean = newPlan.trim();
-
-      const opt = document.createElement("option");
-      opt.value = clean;
-      opt.textContent = clean;
-
-      planSelect.insertBefore(opt, planSelect.lastElementChild);
-      planSelect.value = clean;
-
-      console.log("🆕 Added new plan:", clean);
-
-      // 🟢 Log new plan added
-      await logActivity("Plan Added", clean);
-
-    } else {
-      planSelect.value = "";
-    }
-    return;
-  }
-
-  // CASE 2 — Normal change
-  const val = planSelect.value;
-  console.log("📄 Plan changed to:", val);
-
-  // 🟢 Log plan updated
-  await logActivity("Plan Updated", val);
-});
-
-
 // Elevation selector behavior + activity logging
 elevationSelect.addEventListener("change", async () => {
 
@@ -358,7 +306,7 @@ elevationSelect.addEventListener("change", async () => {
 
 
 // ------------------------- PATCH BACK (Builder record) -------------------------
-async function updateBuilderFields(builderId, planText, elevationText) {
+async function updateBuilderFields(builderId, elevationText) {
   // 1) Fetch latest
   const resFetch = await fetch(
     `https://api.airtable.com/v0/${BASE_ID}/${BUILDERS_TABLE_ID}/${builderId}`,
@@ -372,7 +320,7 @@ async function updateBuilderFields(builderId, planText, elevationText) {
   const data = await resFetch.json();
 
   // 2) Parse JSON safely
-  let currentJSON = { plans: [], elevations: [] };
+  let currentJSON = { elevations: [] };
   try {
     if (data.fields["PlanElevationJSON"]) {
       currentJSON = JSON.parse(data.fields["PlanElevationJSON"]);
@@ -382,17 +330,14 @@ async function updateBuilderFields(builderId, planText, elevationText) {
   }
 
   // 3) Merge
-  const updatedPlans = Array.from(new Set([...(currentJSON.plans || []), planText]));
   const updatedElevations = Array.from(new Set([...(currentJSON.elevations || []), elevationText]));
 
   // 4) Patch
   const payload = {
     fields: {
-      "Plan (Editable)": planText,
       "Elevation (Editable)": elevationText,
       "PlanElevationJSON": JSON.stringify({
-        plans: updatedPlans,
-        elevations: updatedElevations,
+         elevations: updatedElevations,
       }),
     },
   };
@@ -419,7 +364,7 @@ async function updateBuilderFields(builderId, planText, elevationText) {
   }
 
   console.log("✅ Builder updated:", updated);
-  alert("✅ Builder plan/elevation added!");
+  alert("✅ Builder Elevation added!");
 
   // 5) Refresh UI
   await populatePlanElevation(builderSelect);
@@ -567,7 +512,7 @@ function wireEventsOnce() {
   }
 
   builderSelect.onchange = async () => {
-    console.log("📤 Builder changed → repopulating plans/elevations & communities");
+    console.log("📤 Builder changed → repopulating elevations & communities");
     await populatePlanElevation(builderSelect);
 
     // Resolve the selected builder to its record (from Builders table)
@@ -605,19 +550,17 @@ if (builder) {
       return;
     }
 
-    let planText = planSelect.value;
     let elevationText = elevationSelect.value;
 
-    if (planText === "__new__") planText = prompt("Enter new Plan name:") || "";
     if (elevationText === "__new__") elevationText = prompt("Enter new Elevation name:") || "";
 
-    if (!planText.trim() || !elevationText.trim()) {
+    if (!elevationText.trim()) {
   
     }
 
     try {
-      console.log("📡 Patching to Airtable with:", planText, elevationText);
-      await updateBuilderFields(builder.id, planText.trim(), elevationText.trim());
+      console.log("📡 Patching to Airtable with:", elevationText);
+      await updateBuilderFields(builder.id, elevationText.trim());
       await populatePlanElevation(builderSelect);
       console.log("✅ Refresh complete after update");
     } catch (err) {

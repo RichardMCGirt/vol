@@ -183,7 +183,6 @@ async function loadExistingTakeoff(recId) {
   nameInput.value = f["Takeoff Name"] || "";
   typeSelect.value = f["Type"] || "";
   builderSelect.value = f["Builder Name"] || "";
-  planSelect.value = f["Plan"] || "";
   elevationSelect.value = f["Elevation"] || "";
   communitySelect.value = f["Community"] || "";
 
@@ -301,7 +300,6 @@ function renderRow(rec) {
     // --- Primary display name ---
     const takeoffName =
         f["Takeoff Name"] ||
-        f["Plan Name"] ||
         f["Takeoff Creation"] ||
         f["Takeoff Creation 2"] ||
         "Untitled";
@@ -321,8 +319,7 @@ function renderRow(rec) {
         (Array.isArray(f.Community) ? f.Community.join(", ") : "") ||
         "";
 
-    // --- Plans + Elevations from your formula fields ---
-    const plans = f.Plans || "";
+    // ---Elevations from your formula fields ---
     const elevations = f.Elevations || "";
 
     // --- SKU Count ---
@@ -355,14 +352,12 @@ function renderRow(rec) {
         <span class="px-2 py-1 bg-black text-white text-xs rounded-md">${type}</span>
       </td>
 
-      <!-- BUILDER, COMMUNITY, PLANS, ELEVATIONS, SKU COUNT -->
+      <!-- BUILDER, COMMUNITY, ELEVATIONS, SKU COUNT -->
       <td class="py-3 px-3">
         <div class="font-medium">${builder || "—"}</div>
         <div class="text-xs text-gray-500">${community || "—"}</div>
 
-        <div class="text-xs text-gray-600 mt-1">
-            <strong>Plans:</strong> ${plans || "—"}
-        </div>
+       
         <div class="text-xs text-gray-600">
             <strong>Elevations:</strong> ${elevations || "—"}
         </div>
@@ -492,7 +487,6 @@ function countTakeoffsByPlan(records) {
   records.forEach(rec => {
     const f = rec.fields;
     const planName =
-      f["Plan Name"] ||
       f["Takeoff Creation"] ||
       f["Takeoff Creation 2"] ||
       "Unknown";
@@ -568,7 +562,6 @@ const estimator = f.Estimator && f.Estimator.length > 0
     ? estimatorLookup[f.Estimator[0]] || "—"
     : "—";
     const community = safeLinked(f.Community || f["Community (from ...)"]);
-    const plans = f.Plans || "";
     const elevations = f.Elevations || "";
     const skuCount = getSkuCountFromTakeoffFields(f);
     const latest = rec === group.latest;
@@ -590,7 +583,6 @@ const estimator = f.Estimator && f.Estimator.length > 0
                 <span><strong>Builder:</strong> ${builder}</span>
                 <span><strong>Estimator:</strong> ${estimator}</span>
                 <span><strong>Community:</strong> ${community}</span>
-                <span><strong>Plans:</strong> ${plans}</span>
                 <span><strong>Elevations:</strong> ${elevations}</span>
                 <span><strong>SKUs:</strong> ${skuCount}</span>
             </div>
@@ -939,7 +931,6 @@ async function createNewRevision(oldRecord, newJson, newRevision) {
         "Takeoff Name": fields["Takeoff Name"],
         "Type": fields["Type"],
         "Builder": fields["Builder"],
-        "Plan": fields["Plan"],
         "Elevation": fields["Elevation"],
         "Community": fields["Community"],
         "Status": "Draft",

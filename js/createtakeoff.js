@@ -18,7 +18,10 @@ let estimatorList = [];
 const ESTIMATOR_TABLE_ID = "tbl1ymzV1CYldIGJU";
 window.skuData = [];
 let builderLookup = {};  
-document.getElementById("manual-save-btn").addEventListener("click", saveTakeoff);
+document.addEventListener("DOMContentLoaded", () => {
+    const saveBtn = document.getElementById("manual-save-btn");
+    if (saveBtn) saveBtn.addEventListener("click", saveTakeoff);
+});
 // ==========================================================
 // MAIN APP INITIALIZATION
 // ==========================================================
@@ -42,19 +45,9 @@ const communitySelect = document.getElementById("community-select");
 // Load builders immediately
 populateBuilders();
 
-// When Builder selected → Load Plans
-builderSelect.addEventListener("change", e => {
-    populatePlans(e.target.value);
-});
-
-// When Plan selected → Load Elevations
-planSelect.addEventListener("change", () => {
-    populateElevations(builderSelect.value, planSelect.value);
-});
-
 // When Elevation selected → Load Communities
 elevationSelect.addEventListener("change", () => {
-    populateCommunities(builderSelect.value, planSelect.value, elevationSelect.value);
+populateCommunities(builderSelect.value, elevationSelect.value);
 });
 
   // ==========================================================
@@ -157,30 +150,21 @@ async function populateBuilders() {
     console.log(`🏗 Loaded ${builders.length} builders`);
 }
 
+builderSelect.addEventListener("change", async e => {
+    await populateElevations(e.target.value);
+});
 
-async function populatePlans(builder) {
-    const all = await fetchAllTakeoffs();
 
-    const plans = [...new Set(
-        all
-            .filter(t => (t.Builder || []).includes(builder))
-            .map(t => t["Takeoff Name"])
-    )].sort();
 
-    planSelect.innerHTML =
-        `<option value="">Select Plan</option>` +
-        plans.map(p => `<option value="${p}">${p}</option>`).join("");
-        maybeShowLineItems();   // 🔥 FORCE re-check
-
-}
-async function populateElevations(builder, plan) {
+async function populateElevations(builder) {
     const all = await fetchAllTakeoffs();
 
     const elevs = [...new Set(
         all
-            .filter(t => (t.Builder || []).includes(builder) && t["Takeoff Name"] === plan)
+            .filter(t => (t.Builder || []).includes(builder))
             .map(t => t["Elevation"])
     )].sort();
+
 
     elevationSelect.innerHTML =
         `<option value="">Select Elevation</option>` +
@@ -189,18 +173,18 @@ async function populateElevations(builder, plan) {
 
 }
 
-async function populateCommunities(builder, plan, elevation) {
+async function populateCommunities(builder, elevation) {
     const all = await fetchAllTakeoffs();
 
     const comms = [...new Set(
         all
             .filter(t =>
                 (t.Builder || []).includes(builder) &&
-                t["Takeoff Name"] === plan &&
                 t["Elevation"] === elevation
             )
             .map(t => t["Community Name"])
     )].sort();
+
 
     communitySelect.innerHTML =
         `<option value="">Select Community</option>` +
@@ -933,7 +917,6 @@ console.log("🔢 Next Revision:", revision);
     "Builder": builderSelect.value ? [builderSelect.value] : [],
 "Community": communitySelect.value || "",
     "Elevations": elevationSelect.value || "",
-    "Plans": planSelect.value || ""
 };
 
 
