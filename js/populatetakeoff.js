@@ -639,7 +639,7 @@ function renderPaginatedTable() {
 
     revisionGroups.forEach(group => {
         const latest = group.latest.fields;
-        const branch = latest["Division (from Name)"] || "Unknown";
+        const branch = latest["Division"] || "Unknown";
 
         if (!branchBuckets[branch]) {
             branchBuckets[branch] = [];

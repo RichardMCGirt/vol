@@ -71,37 +71,7 @@ elevationSelect.addEventListener("change", () => {
 
     setTimeout(() => loadExistingTakeoff(editingId), 900);
 }
-function addLineItemFromJson(item) {
-    const row = document.createElement("tr");
 
-    row.innerHTML = `
-<td><input class="sku-input w-full" value="${item.SKU || ""}"></td>
-<td><input class="desc-input w-full" value="${item.Description || ""}"></td>
-<td><input class="uom-input w-full" value="${item.UOM || ""}"></td>
-<td><input class="mat-input w-full" value="${item["Description 2 (ex-color)"] || ""}"></td>
-<td><input class="color-input w-full" value="${item["Color Group"] || ""}"></td>
-<td><input class="vendor-input w-full" value="${item.Vendor || ""}"></td>
-
-<td><input class="qty-input w-full" type="number" value="${item.QTY ?? 1}"></td>
-
-<td><input class="cost-input w-full" type="number" value="${item["Unit Cost"] ?? 0}"></td>
-<td><input class="mult-input w-full" type="number" value="${item.mult ?? 1}"></td>
-<td><input class="extcost-input w-full" type="number" value="${item["Total Cost"] ?? 0}" readonly></td>
-
-<td><input class="percent-input w-full" type="number" value="${item.margin ?? 0}"></td>
-<td><input class="total-input w-full" type="number" value="${item["Total Quoted Price:"] ?? 0}" readonly></td>
-
-<td class="text-center"><button class="remove-line text-red-500">🗑️</button></td>
-    `;
-
-    lineItemBody.appendChild(row);
-
-    enableVendorClickDropdown(row.querySelector(".vendor-input"));
-    attachAutocomplete(row.querySelector(".sku-input"), "sku");
-    attachCalculators(row);
-
-    row.querySelector(".remove-line").addEventListener("click", () => row.remove());
-}
 
 async function loadEstimators() {
     let offset = null;
@@ -321,6 +291,42 @@ async function loadSkuJsonRecord(recordId) {
     // LOAD JSON INTO TABLE
     items.forEach(item => addLineItemFromJson(item));
 }
+function addLineItem() {
+    const row = document.createElement("tr");
+
+    row.innerHTML = `
+<td><input class="sku-input w-full" value=""></td>
+<td><input class="desc-input w-full" value=""></td>
+<td><input class="uom-input w-full" value=""></td>
+<td><input class="mat-input w-full" value=""></td>
+<td><input class="color-input w-full" value=""></td>
+<td><input class="vendor-input w-full" value=""></td>
+
+<td><input class="qty-input w-full" type="number" value="1"></td>
+<td><input class="cost-input w-full" type="number" value="0"></td>
+<td><input class="mult-input w-full" type="number" value="1"></td>
+
+<td><input class="extcost-input w-full" type="number" value="0" readonly></td>
+<td><input class="percent-input w-full" type="number" value="0"></td>
+<td><input class="total-input w-full" type="number" value="0" readonly></td>
+
+<td class="text-center"><button class="remove-line text-red-500">🗑️</button></td>
+    `;
+
+    document.getElementById("line-item-body").appendChild(row);
+
+    attachAutocomplete(row.querySelector(".sku-input"), "sku");
+    enableVendorClickDropdown(row.querySelector(".vendor-input"));
+    attachCalculators(row);
+
+    row.querySelector(".remove-line").addEventListener("click", () => {
+        row.remove();
+        updateGrandTotal();
+    });
+
+    updateGrandTotal();
+}
+
 
   // ==========================================================
   // ADD BLANK LINE
@@ -335,21 +341,30 @@ function addLineItemFromJson(item) {
 <td><input class="mat-input w-full" value="${item["Material Type"] || ""}"></td>
 <td><input class="color-input w-full" value="${item["Color Group"] || ""}"></td>
 <td><input class="vendor-input w-full" value="${item.Vendor || ""}"></td>
+
 <td><input class="qty-input w-full" type="number" value="${item.QTY || 1}"></td>
 <td><input class="cost-input w-full" type="number" value="${item["Unit Cost"] || 0}"></td>
-<td><input class="mult-input w-full" type="number" value="1"></td>
+<td><input class="mult-input w-full" type="number" value="${item.UOMMult || 1}"></td>
+
 <td><input class="extcost-input w-full" type="number" value="${item["Total Cost"] || 0}" readonly></td>
-<td><input class="percent-input w-full" type="number" value="0"></td>
-<td><input class="total-input w-full" type="number" value="${item["Total Cost"] || 0}" readonly></td>
+<td><input class="percent-input w-full" type="number" value="${item.Margin || 0}"></td>
+<td><input class="total-input w-full" type="number" value="${item["Total Quoted Price:"] || 0}" readonly></td>
+
 <td class="text-center"><button class="remove-line text-red-500">🗑️</button></td>
     `;
 
+    // 🔧 Re-enable dynamic logic
+    attachAutocomplete(row.querySelector(".sku-input"), "sku");
+    enableVendorClickDropdown(row.querySelector(".vendor-input"));
+    attachCalculators(row);
+
+    // 🔥 Recalculate immediately so pricing fills in
+    recalculateRow(row);
+
+    // Append row
     document.getElementById("line-item-body").appendChild(row);
 
-    attachAutocomplete(row.querySelector(".sku-input"), "sku");
-    attachCalculators(row);
-    enableVendorClickDropdown(row.querySelector(".vendor-input"));
-
+    // Delete line
     row.querySelector(".remove-line").addEventListener("click", () => {
         row.remove();
         updateGrandTotal();
@@ -357,6 +372,8 @@ function addLineItemFromJson(item) {
 
     updateGrandTotal();
 }
+
+
 
   if (addLineItemBtn) addLineItemBtn.addEventListener("click", addLineItem);
 
@@ -748,7 +765,7 @@ function loadJsonIntoTable(rows) {
             <td><input class="color-input w-full" value="${item.ColorGroup || ""}"></td>
             <td><input class="vendor-input w-full" value="${item.Vendor || ""}"></td>
             <td><input class="qty-input w-full" type="number" value="${item.QTY || 0}"></td>
-            <td><input class="cost-input w-full" type="number" value="${item.Cost || 0}"></td>
+<td><input class="cost-input w-full" type="number" value="${item["Unit Cost"] || 0}"></td>
             <td><input class="mult-input w-full" type="number" value="${item.UOMMult || 1}"></td>
             <td><input class="extcost-input w-full" type="number" readonly></td>
             <td><input class="percent-input w-full" type="number" value="${item.Margin || 0}"></td>
@@ -870,16 +887,28 @@ if (await doesTakeoffAlreadyExist(takeoffName)) {
 
 
     document.querySelectorAll("#line-item-body tr").forEach(row => {
-        updatedJson.push({
-            SKU: row.querySelector(".sku-input")?.value || "",
-            Description: row.querySelector(".desc-input")?.value || "",
-            UOM: row.querySelector(".uom-input")?.value || "",
-            Qty: Number(row.querySelector(".qty-input")?.value || 0),
-            ColorGroup: row.querySelector(".color-input")?.value || "",
-            Vendor: row.querySelector(".vendor-input")?.value || "",
-            UnitCost: Number(row.querySelector(".cost-input")?.value || 0),
-            Mult: Number(row.querySelector(".mult-input")?.value || 1)
-        });
+    updatedJson.push({
+    SKU: row.querySelector(".sku-input")?.value || "",
+    Description: row.querySelector(".desc-input")?.value || "",
+    UOM: row.querySelector(".uom-input")?.value || "",
+
+    // 🔥 MATCH WHAT THE LOADER EXPECTS
+    QTY: Number(row.querySelector(".qty-input")?.value || 0),
+    "Unit Cost": Number(row.querySelector(".cost-input")?.value || 0),
+    UOMMult: Number(row.querySelector(".mult-input")?.value || 1),
+
+    // 🔥 MATCHES YOUR LOADER EXACTLY
+    "Total Cost": Number(row.querySelector(".extcost-input")?.value || 0),
+    "Total Quoted Price:": Number(row.querySelector(".total-input")?.value || 0),
+
+    // Optional
+    "Material Type": row.querySelector(".mat-input")?.value || "",
+    "Color Group": row.querySelector(".color-input")?.value || "",
+    Vendor: row.querySelector(".vendor-input")?.value || "",
+    Margin: Number(row.querySelector(".percent-input")?.value || 0)
+});
+
+
     });
 
     console.log("🧪 JSON before save:", updatedJson);
