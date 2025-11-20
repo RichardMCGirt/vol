@@ -183,9 +183,6 @@ async function logTakeoffImportActivity(takeoffName, planName, elevation, nextRe
     console.log("✅ Activity logged successfully:", timestamp);
 }
 
-
-
-
 // ====================================================================
 // 🎯 ROW FILTER
 // ====================================================================
