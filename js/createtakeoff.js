@@ -11,7 +11,6 @@ const AIRTABLE_API_KEY2 =
   "pat6QyOfQCQ9InhK4.4b944a38ad4c503a6edd9361b2a6c1e7f02f216ff05605f7690d3adb12c94a3c";
 const BASE_ID2 = "appnZNCcUAJCjGp7L";
 const TAKEOFFS_TABLE_ID2 = "tblZpnyqHJeC1IaZq";
-const SKU_TABLE_ID2 = "tblZpnyqHJeC1IaZq"; // JSON table
 let estimatorLookup = {};
 let estimatorList = [];
 
@@ -22,13 +21,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const saveBtn = document.getElementById("manual-save-btn");
     if (saveBtn) saveBtn.addEventListener("click", saveTakeoff);
 });
+document.getElementById("grand-total").value
+
 // ==========================================================
 // MAIN APP INITIALIZATION
 // ==========================================================
 document.addEventListener("DOMContentLoaded", async () => {
-    await loadEstimators();  // ⭐
-  console.log("🎬 Takeoff Creation Page Ready");
-    console.log("🎬 Takeoff Creation Page Ready");
+    await loadEstimators(); 
 
   // DOM elements
 const builderSelect = document.getElementById("builder-select");
@@ -50,21 +49,12 @@ elevationSelect.addEventListener("change", () => {
 populateCommunities(builderSelect.value, elevationSelect.value);
 });
 
-  // ==========================================================
-  // 1. LOAD SKU CSV DATA
-  // ==========================================================
   await fetchSkuData();
 
-  // ==========================================================
-  // 2. IF EDIT MODE → LOAD TAKEOFF AFTER DROPDOWNS POPULATE
-  // ==========================================================
  if (editingId) {
-    console.log("📝 Edit Mode:", editingId);
     isLoadingEditMode = true;
-
     setTimeout(() => loadExistingTakeoff(editingId), 900);
 }
-
 
 async function loadEstimators() {
     let offset = null;
@@ -90,7 +80,6 @@ async function loadEstimators() {
         estimatorLookup[r.id] = fullName;
     });
 
-    console.log(`🧑‍💼 Loaded ${estimatorList.length} estimators`);
     populateEstimatorDropdown();
 }
 
@@ -146,15 +135,11 @@ async function populateBuilders() {
         Object.keys(builderLookup)
             .map(id => `<option value="${id}">${builderLookup[id]}</option>`)
             .join("");
-
-    console.log(`🏗 Loaded ${builders.length} builders`);
 }
 
 builderSelect.addEventListener("change", async e => {
     await populateElevations(e.target.value);
 });
-
-
 
 async function populateElevations(builder) {
     const all = await fetchAllTakeoffs();
@@ -165,12 +150,9 @@ async function populateElevations(builder) {
             .map(t => t["Elevation"])
     )].sort();
 
-
     elevationSelect.innerHTML =
         `<option value="">Select Elevation</option>` +
         elevs.map(e => `<option value="${e}">${e}</option>`).join("");
-        maybeShowLineItems();   // 🔥 FORCE re-check
-
 }
 
 async function populateCommunities(builder, elevation) {
@@ -185,28 +167,9 @@ async function populateCommunities(builder, elevation) {
             .map(t => t["Community Name"])
     )].sort();
 
-
     communitySelect.innerHTML =
         `<option value="">Select Community</option>` +
         comms.map(c => `<option value="${c}">${c}</option>`).join("");
-        maybeShowLineItems();   // 🔥 FORCE re-check
-
-}
-
-function maybeShowLineItems() {
-  revealLineItemsSection(); // always show table, no conditions
-}
-
-  // ==========================================================
-  // REVEAL TABLE SECTION
-  // ==========================================================
-function revealLineItemsSection() {
-
-    document.getElementById("placeholder-box").style.display = "none";
-    const section = document.getElementById("line-items-section");
-
-    section.style.display = "block";
-    section.style.opacity = 1;
 }
 
   // ==========================================================
@@ -216,7 +179,6 @@ function revealLineItemsSection() {
 
   const response = await fetch(TAKEOFF_SHEET_URL);
   const csvText = await response.text();
-
   const rows = csvText
     .trim()
     .split("\n")
@@ -242,39 +204,7 @@ function revealLineItemsSection() {
   window.skuData = parsed;
 
 }
-async function loadSkuJsonRecord(recordId) {
-    console.log("📦 Loading SKU JSON record:", recordId);
 
-    const url = `https://api.airtable.com/v0/${BASE_ID}/${TABLE_JSON}/${recordId}`;
-
-    const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${AIRTABLE_API_KEY}` }
-    });
-
-    if (!res.ok) {
-        console.error("❌ Failed to load SKU JSON record:", await res.text());
-        return;
-    }
-
-    const data = await res.json();
-    let items = [];
-
-    try {
-        items = JSON.parse(data.fields["JSON"] || "[]");
-    } catch (e) {
-        console.error("❌ JSON parse error:", e);
-        return;
-    }
-
-    console.log("📄 Loaded JSON items:", items.length);
-
-    // Clear existing rows
-    const lineItemBody = document.getElementById("line-item-body");
-    lineItemBody.innerHTML = "";
-
-    // LOAD JSON INTO TABLE
-    items.forEach(item => addLineItemFromJson(item));
-}
 function addLineItem() {
     const row = document.createElement("tr");
 
@@ -285,15 +215,12 @@ function addLineItem() {
 <td><input class="mat-input w-full" value=""></td>
 <td><input class="color-input w-full" value=""></td>
 <td><input class="vendor-input w-full" value=""></td>
-
 <td><input class="qty-input w-full" type="number" value="1"></td>
 <td><input class="cost-input w-full" type="number" value="0"></td>
 <td><input class="mult-input w-full" type="number" value="1"></td>
-
 <td><input class="extcost-input w-full" type="number" value="0" readonly></td>
 <td><input class="percent-input w-full" type="number" value="0"></td>
 <td><input class="total-input w-full" type="number" value="0" readonly></td>
-
 <td class="text-center"><button class="remove-line text-red-500">🗑️</button></td>
     `;
 
@@ -310,54 +237,6 @@ function addLineItem() {
 
     updateGrandTotal();
 }
-
-
-  // ==========================================================
-  // ADD BLANK LINE
-  // ==========================================================
-function addLineItemFromJson(item) {
-    const row = document.createElement("tr");
-
-    row.innerHTML = `
-<td><input class="sku-input w-full" value="${item.SKU || ""}"></td>
-<td><input class="desc-input w-full" value="${item.Description || ""}"></td>
-<td><input class="uom-input w-full" value="${item.UOM || ""}"></td>
-<td><input class="mat-input w-full" value="${item["Material Type"] || ""}"></td>
-<td><input class="color-input w-full" value="${item["Color Group"] || ""}"></td>
-<td><input class="vendor-input w-full" value="${item.Vendor || ""}"></td>
-
-<td><input class="qty-input w-full" type="number" value="${item.QTY || 1}"></td>
-<td><input class="cost-input w-full" type="number" value="${item["Unit Cost"] || 0}"></td>
-<td><input class="mult-input w-full" type="number" value="${item.UOMMult || 1}"></td>
-
-<td><input class="extcost-input w-full" type="number" value="${item["Total Cost"] || 0}" readonly></td>
-<td><input class="percent-input w-full" type="number" value="${item.Margin || 0}"></td>
-<td><input class="total-input w-full" type="number" value="${item["Total Quoted Price:"] || 0}" readonly></td>
-
-<td class="text-center"><button class="remove-line text-red-500">🗑️</button></td>
-    `;
-
-    // 🔧 Re-enable dynamic logic
-    attachAutocomplete(row.querySelector(".sku-input"), "sku");
-    enableVendorClickDropdown(row.querySelector(".vendor-input"));
-    attachCalculators(row);
-
-    // 🔥 Recalculate immediately so pricing fills in
-    recalculateRow(row);
-
-    // Append row
-    document.getElementById("line-item-body").appendChild(row);
-
-    // Delete line
-    row.querySelector(".remove-line").addEventListener("click", () => {
-        row.remove();
-        updateGrandTotal();
-    });
-
-    updateGrandTotal();
-}
-
-
 
   if (addLineItemBtn) addLineItemBtn.addEventListener("click", addLineItem);
 
@@ -384,7 +263,6 @@ function attachAutocomplete(inputEl, mode) {
 function searchSkuSuggestions(query, inputEl, mode) {
   let matches = [];
   const normalize = (s) => (s || "").trim().toLowerCase();
-
 
 // ==========================
 // Vendor Autocomplete Mode
@@ -641,11 +519,7 @@ function updateGrandTotal() {
   // EDIT MODE → LOAD TAKEOFF
   // ==========================================================
 async function loadExistingTakeoff(recordId) {
-    console.log("📥 Loading takeoff:", recordId);
 
-    // -----------------------------------------
-    // Fetch the Airtable Takeoff Record
-    // -----------------------------------------
     const res = await fetch(
         `https://api.airtable.com/v0/${BASE_ID2}/${TAKEOFFS_TABLE_ID2}/${recordId}`,
         { headers: { Authorization: `Bearer ${AIRTABLE_API_KEY2}` } }
@@ -660,9 +534,6 @@ async function loadExistingTakeoff(recordId) {
         return;
     }
 
-    // -----------------------------------------
-    // ⭐ HEADER FIELDS
-    // -----------------------------------------
     document.getElementById("nameInput").value =
         f["Takeoff Name"] || "";
 
@@ -670,41 +541,26 @@ async function loadExistingTakeoff(recordId) {
     document.getElementById("takeoff-type").value =
         f["Type"] || "";
 
-    // -----------------------------------------
-    // ⭐ Builder (Linked Record)
-    // -----------------------------------------
     if (Array.isArray(f["Builder"]) && f["Builder"].length > 0) {
         document.getElementById("builder-select").value = f["Builder"][0];
     } else {
         console.warn("⚠️ No Builder linked");
     }
 
-    // -----------------------------------------
-    // ⭐ Plan (Text or Single Select)
-    // -----------------------------------------
     if (f["Plan"]) {
         document.getElementById("plan-select").value = f["Plan"];
     }
 
-    // -----------------------------------------
-    // ⭐ Elevation
-    // -----------------------------------------
     if (f["Elevation"]) {
         document.getElementById("elevation-select").value = f["Elevation"];
     }
 
-    // -----------------------------------------
-    // ⭐ Community (Linked Record)
-    // -----------------------------------------
     if (Array.isArray(f["Community"]) && f["Community"].length > 0) {
         document.getElementById("community-select").value = f["Community"][0];
     } else {
         console.warn("⚠️ No Community linked");
     }
 
-    // -----------------------------------------
-    // ⭐ Estimator (Linked Record)
-    // -----------------------------------------
     const estSelect = document.getElementById("estimator-select");
 
     if (Array.isArray(f["Estimator"]) && f["Estimator"].length > 0) {
@@ -714,14 +570,6 @@ async function loadExistingTakeoff(recordId) {
         console.log("⚠️ No Estimator found on record");
     }
 
-    // -----------------------------------------
-    // Show the Line Items Section
-    // -----------------------------------------
-    revealLineItemsSection();
-
-    // -----------------------------------------
-    // ⭐ Load Imported JSON into Table
-    // -----------------------------------------
     let parsed = [];
     const rawJson = f["Imported JSON"] || "[]";
 
@@ -737,7 +585,7 @@ async function loadExistingTakeoff(recordId) {
 
 function loadJsonIntoTable(rows) {
     const tbody = document.getElementById("line-item-body");
-    tbody.innerHTML = ""; // clear old rows
+    tbody.innerHTML = ""; 
 
     rows.forEach(item => {
         const tr = document.createElement("tr");
@@ -749,7 +597,7 @@ function loadJsonIntoTable(rows) {
             <td><input class="color-input w-full" value="${item.ColorGroup || ""}"></td>
             <td><input class="vendor-input w-full" value="${item.Vendor || ""}"></td>
             <td><input class="qty-input w-full" type="number" value="${item.QTY || 0}"></td>
-<td><input class="cost-input w-full" type="number" value="${item["Unit Cost"] || 0}"></td>
+            <td><input class="cost-input w-full" type="number" value="${item["Unit Cost"] || 0}"></td>
             <td><input class="mult-input w-full" type="number" value="${item.UOMMult || 1}"></td>
             <td><input class="extcost-input w-full" type="number" readonly></td>
             <td><input class="percent-input w-full" type="number" value="${item.Margin || 0}"></td>
@@ -812,10 +660,9 @@ async function doesTakeoffAlreadyExist(takeoffName) {
 }
 
 async function saveTakeoff() {
-    console.log("💾 Saving Takeoff…");
+  
 // Pull dropdown fields again for saving
 const builderSelect = document.getElementById("builder-select");
-const planSelect = document.getElementById("plan-select");
 const elevationSelect = document.getElementById("elevation-select");
 const communitySelect = document.getElementById("community-select");
 
@@ -829,12 +676,12 @@ const communitySelect = document.getElementById("community-select");
     // declare these ONCE at top
     // --------------------------------------------
     const name = document.getElementById("nameInput")?.value.trim() || "";
-const takeoffName = document.getElementById("nameInput")?.value.trim() || "";
-const estimatorSelect = document.getElementById("estimator-select");
-let estimatorId = estimatorSelect.value;
-const takeoffType = document.getElementById("takeoff-type")?.value || "";
-// Final Estimator for saving
-const finalEstimator = estimatorId ? [estimatorId] : [];
+    const takeoffName = document.getElementById("nameInput")?.value.trim() || "";
+    const builder = document.getElementById("builder-select")?.value || "";
+    const estimatorSelect = document.getElementById("estimator-select");
+    let estimatorId = estimatorSelect.value;
+    const takeoffType = document.getElementById("takeoff-type")?.value || "";
+    const finalEstimator = estimatorId ? [estimatorId] : [];
 
     // --------------------------------------------
     // prevent overwrite — check Takeoff Name
@@ -861,8 +708,6 @@ if (await doesTakeoffAlreadyExist(takeoffName)) {
     } else if (typedEstimatorName) {
         estimatorId = await getEstimatorRecordIdByName(typedEstimatorName);
     }
-
-    console.log("🧾 Final Estimator ID:", estimatorId);
 
      // ------------------------------
     // Build JSON
@@ -892,35 +737,26 @@ if (await doesTakeoffAlreadyExist(takeoffName)) {
     Margin: Number(row.querySelector(".percent-input")?.value || 0)
 });
 
-
     });
 
-    console.log("🧪 JSON before save:", updatedJson);
-
-  
   // Compute correct next revision number
 const revision = await getNextRevision(takeoffName);
-console.log("🔢 Next Revision:", revision);
-
 
     // ------------------------------
     // Fields to save
     // ------------------------------
- const fields = {
+const fields = {
     "Takeoff Name": name,
     "Imported JSON": JSON.stringify(updatedJson),
     "Revision #": revision,
     "Estimator": finalEstimator,
     "Type": takeoffType || null,
-
-    // NEW FIELDS (from screenshot)
     "Builder": builderSelect.value ? [builderSelect.value] : [],
-"Community": communitySelect.value || "",
+    "Community": communitySelect.value || "",
     "Elevations": elevationSelect.value || "",
+    "Material cost": Number(document.getElementById("grand-total")?.value || 0),
 };
 
-
-    console.log("📤 Fields to save:", fields);
 
     // ------------------------------
     // POST or PATCH
@@ -943,8 +779,6 @@ console.log("🔢 Next Revision:", revision);
 
         const data = await res.json();
 
-        console.log("📥 Airtable save response:", data);
-
        if (!res.ok) {
     console.error("❌ Save failed:", data);
     alert("Save failed. See console.");
@@ -958,19 +792,20 @@ if (!isEdit && data.id) {
 // ------------------------------------------------------
 // 🔥 NEW — Log the Create/Update Activity
 // ------------------------------------------------------
-const builderName = builderSelect.options[builderSelect.selectedIndex]?.text || "";
-const finalName = name || takeoffName;
 
-await logActivity({
-    type: isEdit ? "Takeoff Update" : "Takeoff Create",
-    takeoffName: finalName,
-    builder: builderName,
-    revision: revision
+const builderName =
+  builderLookup[builderSelect.value] || "Unknown Builder";
+
+logActivity("Takeoff Create", {
+  takeoffName,
+  builder: builderName,
+  revision
 });
+
+
 
 // ------------------------------------------------------
 alert("Takeoff saved successfully!");
-console.log("Saved takeoff");
 
     } catch (err) {
         console.error("❌ Save error:", err);

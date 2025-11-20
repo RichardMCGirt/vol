@@ -1221,39 +1221,42 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 });
 
-
 function groupRevisions(records) {
     const groups = {};
 
     records.forEach(rec => {
-        const name = rec.fields["Takeoff Name"] || "Untitled";
+        const f = rec.fields;
 
-        if (!groups[name]) {
-            groups[name] = {
-                name,
+        const planName = f["Takeoff Name"] || "Untitled";
+        const division = f["Division"] || "Unknown";
+        const builderId = Array.isArray(f["Builder"]) ? f["Builder"][0] : "";
+        const builderName = builderLookup[builderId] || "Unknown Builder";
+
+        // 🔥 Composite grouping key
+        const key = `${planName}__${division}__${builderName}`;
+
+        if (!groups[key]) {
+            groups[key] = {
+                name: planName,
+                division,
+                builder: builderName,
                 revisions: [],
                 latest: null
             };
         }
 
-        // Normalize revision value
-        rec._rev = Number(
-            rec.fields["Revision #"] ??
-            rec.fields["Revision"] ??
-            0
-        );
-
-        groups[name].revisions.push(rec);
+        // Normalize revision
+        rec._rev = Number(f["Revision #"] ?? 0);
+        groups[key].revisions.push(rec);
     });
 
-    Object.values(groups).forEach(g => {
-        // Sort highest → lowest
-        g.revisions.sort((a, b) => b._rev - a._rev);
-
-        // Highest revision always the latest
-        g.latest = g.revisions[0];
+    // Pick latest revision per composite key
+    Object.values(groups).forEach(group => {
+        group.revisions.sort((a, b) => b._rev - a._rev);
+        group.latest = group.revisions[0];
     });
 
     return Object.values(groups);
 }
+
 

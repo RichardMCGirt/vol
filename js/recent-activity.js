@@ -201,31 +201,47 @@ for (const u of users) {
   // Helper: Build User-Friendly Summary Text
   //-----------------------------------------------------
   function buildSummary(ev) {
-    switch (ev.action) {
-      case "Login":
-        return `User '${ev.user}' logged in.`;
-      case "Logout":
-        return `User '${ev.user}' logged out.`;
-     case "Takeoff Import": {
-    const d = ev.details || {};
-    return `
-      Imported takeoff '${d.takeoffName || ""}' 
-      (Plan: ${d.plan || "N/A"}, 
-       Elevation: ${d.elevation || "N/A"}, 
-       Rev: ${d.revision || "N/A"})
-    `;
+  switch (ev.action) {
+
+    case "Login":
+      return `User '${ev.user}' logged in.`;
+
+    case "Logout":
+      return `User '${ev.user}' logged out.`;
+
+    case "Takeoff Import": {
+      const d = ev.details || {};
+      return `
+        Imported takeoff '${d.takeoffName || ""}' 
+        (Plan: ${d.plan || "N/A"}, 
+         Elevation: ${d.elevation || "N/A"}, 
+         Rev: ${d.revision || "N/A"})
+      `;
+    }
+
+    case "Takeoff Create": {
+      const d = ev.details || {};
+      return `
+        Created takeoff '${d.takeoffName || ""}'
+        (Builder: ${d.builder || "N/A"},
+         Rev: ${d.revision || "N/A"})
+      `;
+    }
+
+    case "Takeoff Update":
+      return `Updated takeoff '${ev.details}'`;
+
+    case "Plan Updated":
+      return `Updated plan to '${ev.details}'`;
+
+    case "Elevation Updated":
+      return `Updated elevation to '${ev.details}'`;
+
+    default:
+      return ev.details || "Activity recorded.";
+  }
 }
 
-      case "Takeoff Update":
-        return `Updated takeoff '${ev.details}'`;
-      case "Plan Updated":
-        return `Updated plan to '${ev.details}'`;
-      case "Elevation Updated":
-        return `Updated elevation to '${ev.details}'`;
-      default:
-        return ev.details || "Activity recorded.";
-    }
-  }
 
   //-----------------------------------------------------
   // Detect Type (UI Tag)

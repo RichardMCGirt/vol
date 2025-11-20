@@ -3,6 +3,8 @@
 //  Stores structured activity:
 //  { timestamp, type, details }
 // ================================
+import { EAIRTABLE_API_KEY, EBASE_ID, LOGIN_HISTORY_TABLE_ID } 
+    from "./config.js";
 
 export async function logActivity(activityType, details = "") {
     const apiKey = EAIRTABLE_API_KEY;
@@ -80,7 +82,6 @@ export async function logActivity(activityType, details = "") {
             "Last Activity": timestamp,
             "Activity Type": activityType,
             "Login History": JSON.stringify(history)
-            // ❗ DO NOT INCLUDE email (synced)
         }
     };
 
