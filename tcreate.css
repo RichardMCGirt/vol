@@ -1,0 +1,147 @@
+/* ===========================================================
+   UNIVERSAL FIXES
+   =========================================================== */
+
+/* Prevent dropdowns from being cut off inside grid containers */
+select {
+  max-width: 100%;
+  white-space: normal;
+  overflow: visible !important;
+}
+
+/* For long option text inside dropdowns */
+select option {
+  white-space: normal !important;
+  padding: 6px 8px;
+  line-height: 1.3;
+}
+
+/* Prevent body from clipping popouts */
+body {
+  overflow: visible;
+}
+
+/* Ensure the main container allows dropdowns to escape */
+main, section, .grid, .flex {
+  overflow: visible !important;
+}
+
+/* ===========================================================
+   TABLE FIXES — NO MORE CUT OFF TEXT
+   =========================================================== */
+
+table {
+  width: 100%;
+  table-layout: auto;  /* allows flexible column sizing */
+  border-collapse: collapse;
+}
+
+table th,
+table td {
+  white-space: normal !important;  /* allow wrapping */
+  word-break: break-word;
+  max-width: 200px;                /* prevents giant columns */
+  padding: 6px 4px !important;
+}
+
+/* Inputs inside table cells */
+#line-items-section table input,
+#line-items-section table select {
+  width: 100%;
+  white-space: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Keep totals readable */
+.extcost-input, .total-input {
+  text-align: right;
+}
+
+/* ===========================================================
+   AUTOCOMPLETE / VENDOR LIST FIXES
+   =========================================================== */
+
+.autocomplete-container,
+#autocomplete-list {
+  position: absolute !important;
+  z-index: 999999 !important;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  min-width: 240px !important;      /* more room */
+}
+
+/* Suggestion items */
+.autocomplete-item {
+  white-space: normal !important;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.autocomplete-item:hover {
+  background: #f3f4f6;
+}
+
+/* Prevent clipping when dropdown appears near edge */
+body {
+  position: relative;
+}
+
+/* ===========================================================
+   FIX DROPDOWNS INSIDE GRID LAYOUT
+   =========================================================== */
+
+.grid select,
+.flex select {
+  position: relative;
+  z-index: 10;
+  max-height: none;
+}
+
+/* Fix dropdown stacking issues */
+select:focus {
+  position: relative;
+  z-index: 99999;
+}
+
+.sku-suggestion-list {
+  position: absolute;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 9999;
+  margin-top: 4px;
+  padding: 0;
+  list-style: none;
+}
+.sku-suggestion-list li {
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.sku-suggestion-list li:hover {
+  background: #f0f0f0;
+}
+
+
+  table th,
+  table td {
+    white-space: nowrap;
+    padding: 8px 6px !important;
+  }
+
+  table {
+    border-radius: 8px !important;
+    overflow: hidden;
+  }
+
+  #line-items-section table input,
+  #line-items-section table select {
+    padding: 4px 6px;
+    border-radius: 4px;
+  }

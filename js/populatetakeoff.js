@@ -32,6 +32,12 @@ let allTakeoffRecords = [];
 let paginatedRecords = [];     
 
 // ------------------------- FETCH BUILDERS -------------------------
+// 🟦 Helper: Get the selected takeoff ID
+function getSelectedTakeoffId() {
+    const selected = document.querySelector("input.takeoff-checkbox:checked");
+    return selected ? selected.dataset.id : null;
+}
+
 async function fetchBuilders() {
   let records = [];
   let offset = null;
@@ -114,7 +120,7 @@ function applyFilters(records) {
     const builder = builderLookup[f["Builder"]?.[0]] || "";
     const status = f["Status"] || "";
     const type = f["Type"] || "";
-    const branch = f["Division (from Name)"] || "";
+    const branch = f["Division"] || "";
 
     // Search filter
     if (filters.search && !name.includes(filters.search.toLowerCase())) {
@@ -149,7 +155,7 @@ function groupByBranch(records) {
   const groups = {};
 
   records.forEach(rec => {
-    const branch = rec.fields["Division (from Name)"] || "Unknown";
+    const branch = rec.fields["Division"] || "Unknown";
 
     if (!groups[branch]) groups[branch] = [];
     groups[branch].push(rec);
@@ -283,7 +289,7 @@ function renderRow(rec) {
 
     const active = f["Active"] === true;
     const type = f["Type"] || "";
-    const division = f["Division (from Name)"] || "";
+    const division = f["Division"] || "";
     const status = f["Status"] || "Draft";
 
     const totalCost = f["Total cost"] || 0;
@@ -604,6 +610,44 @@ const estimator = f.Estimator && f.Estimator.length > 0
 
     return html;
 }
+document.getElementById("download-template-btn")?.addEventListener("click", async () => {
+    const takeoffId = getSelectedTakeoffId();
+
+    if (!takeoffId) {
+        alert("❌ Please select a takeoff first.");
+        return;
+    }
+
+    try {
+        // Fetch takeoff record
+        const url = `https://api.airtable.com/v0/${window.env.AIRTABLE_BASE_ID}/${window.env.AIRTABLE_TABLE_NAME}/${takeoffId}`;
+
+        const res = await fetch(url, {
+            headers: { Authorization: `Bearer ${window.env.AIRTABLE_API_KEY}` }
+        });
+
+        const data = await res.json();
+
+        const attachment = data.fields["Takeoff Template"]?.[0];
+
+        if (!attachment) {
+            alert("❌ No template file found for this takeoff.");
+            return;
+        }
+
+        // Trigger download
+        const a = document.createElement("a");
+        a.href = attachment.url;
+        a.download = attachment.filename || "TakeoffTemplate";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+
+    } catch (error) {
+        console.error("❌ Error downloading template:", error);
+        alert("Error downloading template. Check console for details.");
+    }
+});
 
 function enableRevisionToggles() {
     document.querySelectorAll(".rev-toggle").forEach(toggle => {
@@ -776,7 +820,7 @@ Object.values(builderLookup).forEach(name => {
 
 // Populate Branch Filter
 const branchFilter = document.getElementById("branch-filter");
-const branches = [...new Set(allTakeoffRecords.map(r => r.fields["Division (from Name)"] || "Unknown"))];
+const branches = [...new Set(allTakeoffRecords.map(r => r.fields["Division"] || "Unknown"))];
 
 branches.sort().forEach(branch => {
   const opt = document.createElement("option");
