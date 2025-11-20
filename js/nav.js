@@ -8,7 +8,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Map button IDs to their target pages
   const routes = {
     "nav-dashboard": "index.html",
-    "nav-takeoffs": "takeoff.html",
+    "nav-takeoffs": "Takeoff.html",
     "nav-builders": "builder.html",
     "nav-communities": "communities.html",
     "nav-sku-database": "sku-database.html",
