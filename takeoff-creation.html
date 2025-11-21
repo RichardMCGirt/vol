@@ -167,14 +167,17 @@
   </div>
 
   <!-- Community -->
-  <div class="col-span-1 md:col-span-3 lg:col-span-5">
-    <label class="form-label">Community *</label>
-    <select id="community-select" class="form-input">
+<div class="col-span-1 md:col-span-3 lg:col-span-5">
+  <label class="form-label">Community *</label>
+
+  <div class="flex gap-2">
+    <select id="community-select" class="form-input flex-1">
       <option value="">Select a builder first</option>
     </select>
+
+    <button id="add-community-btn" class="btn-blue-sm">+ Add</button>
   </div>
 
-</div>
 
   <!-- Line Items Table (hidden initially) -->
   <section id="line-items-section">

@@ -305,7 +305,6 @@ function toggleVendorColumn(hide) {
   tableBody.appendChild(fragment);
 }
 
-
     // INITIAL RENDER
     requestAnimationFrame(() => {
       renderRows();

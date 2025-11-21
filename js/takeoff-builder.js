@@ -8,6 +8,7 @@ const BASE_ID = "appnZNCcUAJCjGp7L";
 // Source tables
 const BUILDERS_TABLE_ID = "tblDkASnuImCKBQyO";   // Builders (has "Client Name")
 const TAKEOFFS_TABLE_ID = "tblYIxFxH2swiBZiI";   // Takeoffs (linked {Builder}, has "Community Name" or "Community (from Name)")
+const COMMUNITIES_TABLE_ID = "tblYIxFxH2swiBZiI";
 
 // DOM elements (must exist in takeoff-creation.html)
 const builderSelect   = document.getElementById("builder-select");
@@ -371,6 +372,64 @@ async function updateBuilderFields(builderId, elevationText) {
 }
 
 // ------------------------- COMMUNITIES (FILTER BY BUILDER REC ID) -------------------------
+document.getElementById("add-community-btn")?.addEventListener("click", async () => {
+  const builderId = builderSelect.value;
+  const elevation = elevationSelect.value;
+
+  if (!builderId) {
+    return alert("Select a Builder before adding a Community.");
+  }
+
+  const newCommunity = prompt("Enter new Community name:");
+  if (!newCommunity || !newCommunity.trim()) return;
+
+  const clean = newCommunity.trim();
+
+  // Create community row
+  try {
+    const payload = {
+      fields: {
+        "Community Name": clean,
+        "Plan name": elevationSelect.value || "",
+        "Builder": [builderId],    // linked record
+      }
+    };
+
+    const res = await fetch(
+      `https://api.airtable.com/v0/${BASE_ID}/${COMMUNITIES_TABLE_ID}`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${AIRTABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      console.error("❌ Error creating community:", data);
+      alert("Failed to create community — see console");
+      return;
+    }
+
+    console.log("🏡 New community created:", data);
+
+    // Add to dropdown and select it
+    const opt = document.createElement("option");
+    opt.value = clean;
+    opt.textContent = clean;
+    communitySelect.appendChild(opt);
+    communitySelect.value = clean;
+
+    alert(`Community "${clean}" added!`);
+  } catch (err) {
+    console.error("❌ Error creating community:", err);
+    alert("Error adding community. See console.");
+  }
+});
 
 async function populateCommunityDropdownByBuilderId(builderRecId) {
   if (!communitySelect) return;
@@ -395,13 +454,13 @@ async function populateCommunityDropdownByBuilderId(builderRecId) {
   records.forEach((rec, i) => console.log(i + 1, rec.fields));
 
   // Correct field name
-  const names = records
-    .map(r => {
-      const value = r.fields["Community Name"];
-      console.log("➡️ Community Name:", value);
-      return value ? value.trim() : "";
-    })
-    .filter(Boolean);
+ const names = records
+  .map(r => {
+    const v = r.fields["Community Name"];
+    return v ? v.trim() : "";
+  })
+  .filter(Boolean);
+
 
   console.log("🧪 Extracted community names:", names);
 
@@ -473,8 +532,12 @@ async function populateCommunityDropdownByBuilderName(builder) {
   records.forEach(r => console.log(r.fields));
 
   const names = records
-    .map(r => (r.fields["Community Name"] || "").trim())
-    .filter(Boolean);
+  .map(r => {
+    const v = r.fields["Community Name"];
+    return v ? v.trim() : "";
+  })
+  .filter(Boolean);
+
 
   console.log("🧪 Extracted names:", names);
 
@@ -511,27 +574,33 @@ function wireEventsOnce() {
     return;
   }
 
-  builderSelect.onchange = async () => {
-    console.log("📤 Builder changed → repopulating elevations & communities");
-    await populatePlanElevation(builderSelect);
+builderSelect.onchange = async () => {
+  console.log("📤 Builder changed → repopulating elevations & communities");
 
-    // Resolve the selected builder to its record (from Builders table)
-    let builderRecords = [];
-    try {
-      builderRecords = await fetchBuilderRecords();
-    } catch (err) {
-      console.error("❌ Failed to fetch builders (for communities):", err);
-      communitySelect.innerHTML = `<option value="">Failed to load communities</option>`;
-      return;
-    }
-   const builder = findBuilderRecord(builderRecords, builderSelect);
-if (builder) {
-  await populateCommunityDropdownByBuilderName(builder);
-} else {
-  communitySelect.innerHTML = `<option value="">Select a builder first</option>`;
-}
+  // repopulate elevations (correct)
+  await populatePlanElevation(builderSelect);
 
-  };
+  // fetch builder records
+  let builderRecords = [];
+  try {
+    builderRecords = await fetchBuilderRecords();
+  } catch (err) {
+    console.error("❌ Failed to fetch builders (for communities):", err);
+    communitySelect.innerHTML = `<option value="">Failed to load communities</option>`;
+    return;
+  }
+
+  // find the selected builder record
+  const builder = findBuilderRecord(builderRecords, builderSelect);
+
+  // ✅ populate community dropdown HERE
+  if (builder) {
+    await populateCommunityDropdownByBuilderName(builder);
+  } else {
+    communitySelect.innerHTML = `<option value="">Select a builder first</option>`;
+  }
+};
+
 
   saveBtn.onclick = async () => {
     console.log("💾 Save button clicked");
