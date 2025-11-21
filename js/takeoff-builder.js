@@ -376,22 +376,20 @@ document.getElementById("add-community-btn")?.addEventListener("click", async ()
   const builderId = builderSelect.value;
   const elevation = elevationSelect.value;
 
-  if (!builderId) {
-    return alert("Select a Builder before adding a Community.");
-  }
+  if (!builderId) return alert("Select a builder first.");
+  if (!elevation) return alert("Select an Elevation first.");
 
-  const newCommunity = prompt("Enter new Community name:");
-  if (!newCommunity || !newCommunity.trim()) return;
+  const newName = prompt("Enter new Community name:");
+  if (!newName || !newName.trim()) return;
+  const clean = newName.trim();
 
-  const clean = newCommunity.trim();
-
-  // Create community row
   try {
+    // ⭐ CREATE IN COMMUNITIES TABLE (TABLE #1)
     const payload = {
       fields: {
         "Community Name": clean,
-        "Plan name": elevationSelect.value || "",
-        "Builder": [builderId],    // linked record
+        "Plan name": elevation,
+        "Builder": [builderId], // linked record
       }
     };
 
@@ -408,28 +406,28 @@ document.getElementById("add-community-btn")?.addEventListener("click", async ()
     );
 
     const data = await res.json();
-
     if (!res.ok) {
-      console.error("❌ Error creating community:", data);
-      alert("Failed to create community — see console");
+      console.error(data);
+      alert("Error creating community.");
       return;
     }
 
-    console.log("🏡 New community created:", data);
+    const communityId = data.id; // ⭐ record ID of new community
 
-    // Add to dropdown and select it
+    // ⭐ ADD TO DROPDOWN AS LINKED RECORD
     const opt = document.createElement("option");
-    opt.value = clean;
+    opt.value = communityId;     // store record ID
     opt.textContent = clean;
     communitySelect.appendChild(opt);
-    communitySelect.value = clean;
+    communitySelect.value = communityId;
 
-    alert(`Community "${clean}" added!`);
+    alert(`Community "${clean}" created!`);
   } catch (err) {
-    console.error("❌ Error creating community:", err);
-    alert("Error adding community. See console.");
+    console.error(err);
+    alert("Error adding community.");
   }
 });
+
 
 async function populateCommunityDropdownByBuilderId(builderRecId) {
   if (!communitySelect) return;
@@ -480,7 +478,8 @@ async function populateCommunityDropdownByBuilderId(builderRecId) {
 
   unique.forEach(name => {
     const opt = document.createElement("option");
-    opt.value = name;
+opt.value = r.id;        // linked record ID
+
     opt.textContent = name;
     communitySelect.appendChild(opt);
     console.log("📥 Added:", name);

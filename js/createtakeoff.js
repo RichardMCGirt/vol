@@ -556,7 +556,9 @@ async function loadExistingTakeoff(recordId) {
     }
 
     if (Array.isArray(f["Community"]) && f["Community"].length > 0) {
-        document.getElementById("community-select").value = f["Community"][0];
+if (Array.isArray(f["Community2"]) && f["Community2"].length > 0) {
+    communitySelect.value = f["Community2"][0];  // record ID
+}
     } else {
         console.warn("⚠️ No Community linked");
     }
@@ -752,10 +754,15 @@ const fields = {
     "Estimator": finalEstimator,
     "Type": takeoffType || null,
     "Builder": builderSelect.value ? [builderSelect.value] : [],
-    "Community": communitySelect.value || "",
+
+    // ⭐ NEW — BOTH FIELDS
+    "Community": communitySelect.options[communitySelect.selectedIndex].text || "",
+    "Community2": communitySelect.value ? [communitySelect.value] : [],
+
     "Elevations": elevationSelect.value || "",
     "Material cost": Number(document.getElementById("grand-total")?.value || 0),
 };
+
 
 
     // ------------------------------

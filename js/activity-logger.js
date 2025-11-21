@@ -111,5 +111,9 @@ export async function logActivity(activityType, details = "") {
 }
 async function softRefresh() {
     console.log("🔄 Soft refresh triggered…");
+if (typeof populateTakeoffTable === "function") {
     await populateTakeoffTable();
+} else {
+    console.log("ℹ️ populateTakeoffTable() not available on this page — skipping refresh.");
+}
 }
