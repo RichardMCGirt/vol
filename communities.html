@@ -5,6 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Community Management</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Hide the entire Branch column */
+td:nth-child(3),
+th:nth-child(3) {
+  display: none !important;
+}
+
+  </style>
 </head>
 
 <body class="bg-gray-50 text-gray-800 font-sans">
@@ -144,11 +152,7 @@
             <input type="text" id="communityName" class="w-full border border-gray-300 rounded-md p-2 text-sm" placeholder="e.g. Rosewood Estates" required />
           </div>
 
-          <div>
-            <label class="block text-sm font-medium text-gray-700">Plan Name</label>
-            <input type="text" id="planName" class="w-full border border-gray-300 rounded-md p-2 text-sm" placeholder="e.g. The Durham" required />
-          </div>
-
+         
           <div>
             <label class="block text-sm font-medium text-gray-700">Builder</label>
             <select id="community-builder" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" required>

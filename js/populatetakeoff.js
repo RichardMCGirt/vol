@@ -567,7 +567,8 @@ const estimator = f.Estimator && f.Estimator.length > 0
 
 
     html += `
-        <div class="flex items-center gap-4 py-2">
+<div class="revision-click-row flex items-center gap-4 py-2 cursor-pointer hover:bg-gray-100"
+     data-record-id="${id}">
 
             <input type="checkbox"
                    class="takeoff-select-checkbox h-4 w-4"
@@ -601,44 +602,6 @@ const estimator = f.Estimator && f.Estimator.length > 0
 
     return html;
 }
-document.getElementById("download-template-btn")?.addEventListener("click", async () => {
-    const takeoffId = getSelectedTakeoffId();
-
-    if (!takeoffId) {
-        alert("❌ Please select a takeoff first.");
-        return;
-    }
-
-    try {
-        // Fetch takeoff record
-        const url = `https://api.airtable.com/v0/${window.env.AIRTABLE_BASE_ID}/${window.env.AIRTABLE_TABLE_NAME}/${takeoffId}`;
-
-        const res = await fetch(url, {
-            headers: { Authorization: `Bearer ${window.env.AIRTABLE_API_KEY}` }
-        });
-
-        const data = await res.json();
-
-        const attachment = data.fields["Takeoff Template"]?.[0];
-
-        if (!attachment) {
-            alert("❌ No template file found for this takeoff.");
-            return;
-        }
-
-        // Trigger download
-        const a = document.createElement("a");
-        a.href = attachment.url;
-        a.download = attachment.filename || "TakeoffTemplate";
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-
-    } catch (error) {
-        console.error("❌ Error downloading template:", error);
-        alert("Error downloading template. Check console for details.");
-    }
-});
 
 function enableRevisionToggles() {
     document.querySelectorAll(".rev-toggle").forEach(toggle => {
@@ -711,9 +674,13 @@ const elevation =
         byDivision[division][name][elevation].push({
             id: rec.id,
             revision,
-            estimator: (Array.isArray(f["Estimator"]) && f["Estimator"].length > 0) ? f["Estimator"][0] : "—",
+estimator: (Array.isArray(f["Estimator"]) && f["Estimator"].length > 0)
+    ? estimatorLookup[f["Estimator"][0]] || "—"
+    : "—",
             community: f["Community"] || "—",
-            builder: f["Builder"] ? f["Builder"][0] : "—",
+builder: (Array.isArray(f["Builder"]) && f["Builder"].length > 0)
+    ? builderLookup[f["Builder"][0]] || "—"
+    : "—",
             skuCount: window.takeoffCounts?.[rec.id] || 0
         });
     });
@@ -825,7 +792,6 @@ const elevation =
     });
 }
 
-
 function enableGroupToggles() {
   document.querySelectorAll("[data-group]").forEach(header => {
     header.addEventListener("click", () => {
@@ -836,6 +802,20 @@ function enableGroupToggles() {
     });
   });
 }
+document.addEventListener("click", async (e) => {
+    const row = e.target.closest(".revision-click-row");
+    if (!row || e.target.classList.contains("takeoff-select-checkbox")) return;
+
+    const recId = row.dataset.recordId;
+    console.log("📌 Revision clicked →", recId);
+
+    // Save recordID for editor
+    localStorage.setItem("editingTakeoffId", recId);
+
+    // Redirect to editor
+    window.location.href = "takeoff-creation.html";
+});
+
 
 // ------------------------- MAIN RENDER FUNCTION -------------------------
 async function populateTakeoffTable() {
@@ -1376,6 +1356,39 @@ document.addEventListener("DOMContentLoaded", () => {
 await populateTakeoffTable();
 
     });
+    document.addEventListener("click", async (e) => {
+    const row = e.target.closest(".revision-click-row");
+    if (!row) return;
+
+    const recId = row.dataset.recordId;
+    console.log("📌 Revision clicked →", recId);
+
+    await loadRevisionIntoEditor(recId);
+});
+async function loadRevisionIntoEditor(recordId) {
+    console.log("📡 Fetching revision:", recordId);
+
+    const url = `https://api.airtable.com/v0/${window.env.AIRTABLE_BASE_ID}/${window.env.AIRTABLE_TABLE_NAME}/${recordId}`;
+
+    const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${window.env.AIRTABLE_API_KEY}` }
+    });
+
+    if (!res.ok) {
+        console.error("❌ Failed to load revision:", await res.text());
+        return;
+    }
+
+    const data = await res.json();
+    const fields = data.fields;
+
+    // Store revision to localStorage for takeoff-creation.html
+    localStorage.setItem("revisionToEdit", JSON.stringify({ id: recordId, fields }));
+
+    // Redirect
+    window.location.href = "takeoff-creation.html";
+}
+
 });
 
 function groupRevisions(records) {
@@ -1420,3 +1433,32 @@ const key = `${planName}__${division}__${builderName}__${elevation}`;
 
 
 window.renderPaginatedTable = renderPaginatedTable;
+// =============================
+// 📌 Revision Click → Load Editor
+// =============================
+document.addEventListener("click", (e) => {
+
+    // Find the clicked revision item
+    const rev = e.target.closest(".revision-item");
+    if (!rev) return;
+
+    // Prevent clicks on checkbox from triggering redirect
+    if (e.target.classList.contains("takeoff-select-checkbox")) return;
+
+    // Extract record ID
+    const recId = rev.querySelector(".takeoff-select-checkbox")?.dataset.id;
+
+    if (!recId) {
+        console.warn("No record ID found for revision-item");
+        return;
+    }
+
+    console.log("📌 Revision clicked →", recId);
+
+    // Save to localStorage for takeoff-creation.html to load
+    localStorage.setItem("editingTakeoffId", recId);
+
+    // Redirect
+    window.location.href = "takeoff-creation.html";
+});
+

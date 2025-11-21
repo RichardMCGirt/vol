@@ -106,52 +106,87 @@ document.addEventListener("DOMContentLoaded", async () => {
     return map;
   }
 
-  async function loadCommunities() {
-    try {
-      tableBody.innerHTML = `<tr><td colspan="5" class="py-3 text-center text-gray-500">Loading...</td></tr>`;
-      const communities = await fetchCommunities();
-      console.log(`✅ Loaded ${communities.length} communities`);
+async function loadCommunities() {
+  try {
+    tableBody.innerHTML = `<tr><td colspan="5" class="py-3 text-center text-gray-500">Loading...</td></tr>`;
+    const communities = await fetchCommunities();
+    console.log(`✅ Loaded ${communities.length} communities`);
 
-      const builderIds = new Set();
-      communities.forEach(rec => {
-        const ids = rec.fields["Builder"] || [];
-        ids.forEach(id => builderIds.add(id));
-      });
+    // ------------------------------------------
+    // 1. Build map of Builder IDs → Builder Names
+    // ------------------------------------------
+    const builderIds = new Set();
+    communities.forEach(rec => {
+      const ids = rec.fields["Builder"] || [];
+      ids.forEach(id => builderIds.add(id));
+    });
 
-      const builderMap = await fetchBuilderNames([...builderIds]);
-      tableBody.innerHTML = "";
+    const builderMap = await fetchBuilderNames([...builderIds]);
 
-      communities.forEach(rec => {
+    // ------------------------------------------
+    // 2. GROUP COMMUNITIES BY BRANCH
+    // ------------------------------------------
+    const groups = {};
+    communities.forEach(rec => {
+      const f = rec.fields;
+
+      const branch = (f["Branch"] || "—").trim();
+      if (!groups[branch]) groups[branch] = [];
+      groups[branch].push(rec);
+    });
+
+    // Sort branches alphabetically
+    const sortedBranches = Object.keys(groups).sort();
+
+    // ------------------------------------------
+    // 3. RENDER BY BRANCH
+    // ------------------------------------------
+    tableBody.innerHTML = "";
+
+    sortedBranches.forEach(branch => {
+      // Branch header row
+      const headerRow = document.createElement("tr");
+      headerRow.innerHTML = `
+        <td colspan="5" class="bg-gray-200 font-semibold py-2 px-3 text-gray-700">
+          ${branch}
+        </td>
+      `;
+      tableBody.appendChild(headerRow);
+
+      // Rows under this branch
+      groups[branch].forEach(rec => {
         const f = rec.fields;
+
         const builderId = f["Builder"]?.[0];
         const builderName = builderMap[builderId] || "—";
-        const branch = Array.isArray(f["Division (from Builder)"]) ? f["Division (from Builder)"][0] : "—";
 
         const row = document.createElement("tr");
         row.innerHTML = `
           <td class="py-3 px-3 font-medium text-gray-800">${f["Community Name"] || "—"}</td>
           <td class="py-3 px-3">${builderName}</td>
-                    <td class="py-3 px-3">${branch}</td>
-
+          <td class="py-3 px-3">${branch}</td>
           <td class="py-3 px-3 text-right">
             <button data-id="${rec.id}" class="edit-btn text-blue-600 hover:underline text-sm">Edit</button>
           </td>
         `;
         tableBody.appendChild(row);
       });
+    });
 
-      // Rebind edit buttons
-      document.querySelectorAll(".edit-btn").forEach(btn => {
-        btn.addEventListener("click", e => {
-          const recordId = e.target.dataset.id;
-          openEditModal(recordId);
-        });
+    // Rebind edit buttons
+    document.querySelectorAll(".edit-btn").forEach(btn => {
+      btn.addEventListener("click", e => {
+        const recordId = e.target.dataset.id;
+        openEditModal(recordId);
       });
-    } catch (err) {
-      console.error("❌ Error loading communities:", err);
-      tableBody.innerHTML = `<tr><td colspan="5" class="py-3 text-center text-red-500">Failed to load data</td></tr>`;
-    }
+    });
+
+  } catch (err) {
+    console.error("❌ Error loading communities:", err);
+    tableBody.innerHTML = `<tr><td colspan="5" class="py-3 text-center text-red-500">Failed to load data</td></tr>`;
   }
+}
+
 
   // ---------------- CREATE / EDIT ----------------
   async function openEditModal(recordId) {
@@ -169,7 +204,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       await populateBuilderDropdown();
 
       document.getElementById("communityName").value = f["Community Name"] || "";
-      document.getElementById("planName").value = f["Plan name"] || "";
       document.getElementById("startDate").value = f["Start Date"] || "";
       document.getElementById("estimatedCompletion").value = f["Estimated Completion"] || "";
 
@@ -189,7 +223,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   async function createOrUpdateCommunity() {
     const name = document.getElementById("communityName").value.trim();
-    const plan = document.getElementById("planName").value.trim();
     const builder = builderSelect.value.trim();
     const startDate = document.getElementById("startDate").value || "";
     const estimatedCompletion = document.getElementById("estimatedCompletion").value || "";
@@ -203,7 +236,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const payload = {
       fields: {
         "Community Name": name,
-        "Plan name": plan,
         "Builder": [builderId],
         "Start Date": startDate,
         "Estimated Completion": estimatedCompletion,

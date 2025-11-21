@@ -22,6 +22,68 @@ document.addEventListener("DOMContentLoaded", () => {
     if (saveBtn) saveBtn.addEventListener("click", saveTakeoff);
 });
 document.getElementById("grand-total").value
+document.addEventListener("DOMContentLoaded", () => {
+    const rev = localStorage.getItem("revisionToEdit");
+    if (rev) {
+        const { id, fields } = JSON.parse(rev);
+        console.log("🛠 Editing revision:", id);
+
+        localStorage.setItem("editingTakeoffId", id); // enable PATCH mode
+        fillTakeoffForm(fields); // populate fields
+        localStorage.removeItem("revisionToEdit");
+    }
+});
+async function loadTakeoffRevision(recordId, revision) {
+    const url = `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}/${recordId}`;
+
+    const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${AIRTABLE_API_KEY}` }
+    });
+
+    const data = await res.json();
+
+    console.log("📥 Loaded Takeoff:", data);
+
+    // Insert into UI
+    document.getElementById("nameInput").value = data.fields["Takeoff Name"] || "";
+    document.getElementById("estimator-select").value = data.fields["Estimator"]?.[0] || "";
+    document.getElementById("builder-select").value = data.fields["Builder"]?.[0] || "";
+    document.getElementById("elevation-select").value = data.fields["Elevations"] || "";
+    
+    // Load line items JSON
+    const json = JSON.parse(data.fields["Imported JSON"] || "[]");
+    populateLineItemTable(json);
+}
+
+window.addEventListener("DOMContentLoaded", async () => {
+    const recordId = localStorage.getItem("selectedTakeoffRecordId");
+    const revision = localStorage.getItem("selectedRevision");
+
+    if (!recordId || !revision) {
+        console.warn("No revision selected");
+        return;
+    }
+
+    console.log("🎯 Loading selected Takeoff Revision:", recordId, revision);
+
+    await loadTakeoffRevision(recordId, revision);
+});
+
+function fillTakeoffForm(f) {
+    document.getElementById("nameInput").value = f["Takeoff Name"] || "";
+    document.getElementById("takeoff-type").value = f["Type"] || "";
+    document.getElementById("builder-select").value = f["Builder"]?.[0] || "";
+    document.getElementById("elevation-select").value = f["Elevations"] || "";
+    document.getElementById("community-select").value = f["Community2"]?.[0] || "";
+
+    // Load Imported JSON into table
+    try {
+        const json = JSON.parse(f["Imported JSON"] || "[]");
+        loadJsonIntoTable(json); // this function already exists in your file
+    } catch (err) {
+        console.error("❌ Imported JSON parse error:", err);
+    }
+}
 
 // ==========================================================
 // MAIN APP INITIALIZATION
@@ -643,6 +705,52 @@ async function getNextRevision(takeoffName) {
     });
 
     return maxRev + 1;
+}
+document.addEventListener("DOMContentLoaded", () => {
+  const saved = localStorage.getItem("revisionToEdit");
+  if (!saved) return;
+
+  const data = JSON.parse(saved);
+
+  console.log("Editing revision:", data);
+
+  // Populate header fields
+  document.getElementById("nameInput").value = data["Takeoff Name"] || "";
+  document.getElementById("builder-select").value = data["Builder"]?.[0] || "";
+  document.getElementById("estimator-select").value = data["Estimator"]?.[0] || "";
+  document.getElementById("takeoff-type").value = data["Takeoff Type"] || "";
+  document.getElementById("elevation-select").value = data["Elevations"] || "";
+
+  // Populate line items from Imported JSON
+  const items = JSON.parse(data["Imported JSON"] || "[]");
+
+  renderImportedRows(items);
+
+  // Optional: Remove after load
+  localStorage.removeItem("revisionToEdit");
+});
+function renderImportedRows(rows) {
+  const tbody = document.querySelector("#line-items-section tbody");
+  tbody.innerHTML = "";
+
+  rows.forEach(item => {
+    const tr = document.createElement("tr");
+
+    tr.innerHTML = `
+      <td>${item.SKU}</td>
+      <td>${item.Description}</td>
+      <td>${item.UOM}</td>
+      <td>${item["Material Type"]}</td>
+      <td>${item["Color Group"]}</td>
+      <td>${item.Vendor}</td>
+      <td><input type="number" value="${item.QTY}" class="qty-input"></td>
+      <td>${item["Unit Cost"]}</td>
+      <td>${item["UOMMult"]}</td>
+      <td>${item["Total Cost"]}</td>
+    `;
+
+    tbody.appendChild(tr);
+  });
 }
 
 async function doesTakeoffAlreadyExist(takeoffName) {
