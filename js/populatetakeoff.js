@@ -189,7 +189,6 @@ async function loadExistingTakeoff(recId) {
   // Show line items section
   revealLineItemsSection();
 
-  // 🔥 Load the UPDATED JSON from Airtable
   // Load the updated Imported JSON instead of old SKU table
 if (f["Imported JSON"]) {
     try {
@@ -664,65 +663,168 @@ function enableRevisionToggles() {
 }
 
 function renderPaginatedTable() {
-    // 1. Apply filters to ALL takeoff records
+    console.log("📄 Rendering grouped table (Division → Takeoff → Elevation → Revision)");
+   const tableBody = document.getElementById("takeoff-table");
+    if (!tableBody) return;
+
+const totalLabel = document.getElementById("takeoff-total");
+if (totalLabel) {
     const filtered = applyFilters(allTakeoffRecords);
+    totalLabel.textContent = `Total Records: ${filtered.length}`;
+}
 
-    // 2. Group them by Takeoff Name (combine all revisions)
-    const revisionGroups = groupRevisions(filtered);
 
-    // 3. Build branch → [groups] structure using the LATEST revision
-    const branchBuckets = {};
+// ⭐ Update Page Info
+const pageInfo = document.getElementById("page-info");
+if (pageInfo) {
+    const totalPages = Math.ceil(allTakeoffRecords.length / pageSize);
+    pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+}
 
-    revisionGroups.forEach(group => {
-        const latest = group.latest.fields;
-        const branch = latest["Division"] || "Unknown";
 
-        if (!branchBuckets[branch]) {
-            branchBuckets[branch] = [];
-        }
+    tableBody.innerHTML = "";
 
-        branchBuckets[branch].push(group);
-    });
+    if (!Array.isArray(allTakeoffRecords)) {
+        console.warn("⚠ allTakeoffRecords missing");
+        return;
+    }
 
-    // 4. Construct HTML for the table
-    let html = "";
+    // -------------------------
+    // 1️⃣ GROUP BY DIVISION
+    // -------------------------
+    const byDivision = {};
+    allTakeoffRecords.forEach(rec => {
+        const f = rec.fields;
+        const division = f["Division"] || "Unknown Division";
+        const name = f["Takeoff Name"] || "Unknown";
+const elevation =
+    f["Elevations"] ||
+    f["Elevation"] ||
+    f["Elevation (from something)"] ||
+    "Unknown Elevation";
+        const revision = f["Revision #"] ?? "?";
 
-    Object.entries(branchBuckets).forEach(([branch, groups]) => {
-        const groupId = branch.replace(/\s+/g, "-").toLowerCase();
+        if (!byDivision[division]) byDivision[division] = {};
+        if (!byDivision[division][name]) byDivision[division][name] = {};
+        if (!byDivision[division][name][elevation]) byDivision[division][name][elevation] = [];
 
-        // Branch header row (click to collapse/expand)
-        html += `
-            <tr class="bg-gray-100 cursor-pointer" data-group="${groupId}">
-                <td colspan="10" class="py-3 px-4 font-semibold text-gray-800">
-                    ${branch} — 
-                    <span class="text-blue-600">${groups.length} Takeoffs</span>
-                </td>
-            </tr>
-        `;
-
-        // Render grouped takeoffs inside this branch
-        groups.forEach(group => {
-            html += `
-                <tr class="branch-row hidden group-${groupId}">
-                    ${renderGroupedRow(group)}
-                </tr>
-            `;
+        byDivision[division][name][elevation].push({
+            id: rec.id,
+            revision,
+            estimator: (Array.isArray(f["Estimator"]) && f["Estimator"].length > 0) ? f["Estimator"][0] : "—",
+            community: f["Community"] || "—",
+            builder: f["Builder"] ? f["Builder"][0] : "—",
+            skuCount: window.takeoffCounts?.[rec.id] || 0
         });
     });
 
-    // 5. Update DOM
-    tableBody.innerHTML = html;
+    // -------------------------
+    // 2️⃣ SORT ALPHABETICALLY
+    // -------------------------
+    const sortedDivisions = Object.keys(byDivision).sort();
 
-    // 6. Re-enable interactions
-    enableRowInteractions();
-    enableGroupToggles();
-     enableRevisionToggles();
+    sortedDivisions.forEach(division => {
+        const takeoffs = byDivision[division];
+        const sortedTakeoffNames = Object.keys(takeoffs).sort();
 
-    // 7. Update dashboard stats
-    document.getElementById("total-takeoff-count").textContent = revisionGroups.length;
-    document.getElementById("draft-takeoff-count").textContent =
-        revisionGroups.filter(g => g.latest.fields["Status"] === "Draft").length;
+        // Division Block
+        const divBlock = document.createElement("div");
+        divBlock.className = "division-block mt-6 p-4 border rounded bg-gray-100 cursor-pointer";
+
+        divBlock.innerHTML = `
+            <h2 class="text-2xl font-semibold text-blue-700 division-toggle"> ${division}</h2>
+            <div class="takeoff-container ml-6 mt-3 hidden"></div>
+        `;
+
+        const takeoffContainer = divBlock.querySelector(".takeoff-container");
+
+        // ------------ TAKEOFF NAMES (sorted) ------------
+        sortedTakeoffNames.forEach(takeoffName => {
+            const elevations = takeoffs[takeoffName];
+            const sortedElevations = Object.keys(elevations).sort();
+
+            const takeoffBlock = document.createElement("div");
+            takeoffBlock.className = "takeoff-block mt-3";
+
+            takeoffBlock.innerHTML = `
+                <h3 class="text-xl font-semibold cursor-pointer text-gray-800 toggle-takeoff">
+                     ${takeoffName}
+                </h3>
+                <div class="elevation-container ml-6 mt-2 hidden"></div>
+            `;
+
+            const elevationContainer = takeoffBlock.querySelector(".elevation-container");
+
+            // ------------ ELEVATIONS (sorted A → Z) ------------
+            sortedElevations.forEach(elevation => {
+                const revisionList = elevations[elevation];
+                revisionList.sort((a, b) => b.revision - a.revision);
+
+                const elevationBlock = document.createElement("div");
+                elevationBlock.className = "elevation-block mt-2";
+
+                elevationBlock.innerHTML = `
+                    <h4 class="text-lg font-medium cursor-pointer text-gray-700 toggle-elevation">
+                         ${elevation}
+                    </h4>
+                    <div class="revision-container ml-6 mt-2 hidden"></div>
+                `;
+
+                const revisionContainer = elevationBlock.querySelector(".revision-container");
+
+                // ---- REVISION LIST ----
+                revisionList.forEach(r => {
+                    const rev = document.createElement("div");
+                    rev.className = "revision-item p-2 border rounded mt-1 bg-white";
+
+                    rev.innerHTML = `
+                        <label class="flex items-center gap-2">
+                            <input type="checkbox" class="takeoff-select-checkbox h-4 w-4" data-id="${r.id}">
+                            <span class="font-semibold">Revision ${r.revision}</span>
+                            ${r === revisionList[0] ? `<span class="text-green-600 text-sm">(latest)</span>` : ""}
+                        </label>
+                        <div class="text-sm ml-6">
+                            <div><strong>Estimator:</strong> ${r.estimator}</div>
+                            <div><strong>Community:</strong> ${r.community}</div>
+                            <div><strong>Builder:</strong> ${r.builder}</div>
+                            <div><strong>SKUs:</strong> ${r.skuCount}</div>
+                        </div>
+                    `;
+                    revisionContainer.appendChild(rev);
+                });
+
+                elevationContainer.appendChild(elevationBlock);
+            });
+
+            takeoffContainer.appendChild(takeoffBlock);
+        });
+
+        tableBody.appendChild(divBlock);
+    });
+
+    // -------------------------
+    // 3️⃣ CLICK HANDLERS
+    // -------------------------
+    document.querySelectorAll(".division-toggle").forEach(el => {
+        el.onclick = () => {
+            const cont = el.parentElement.querySelector(".takeoff-container");
+            cont.classList.toggle("hidden");
+        };
+    });
+
+    document.querySelectorAll(".toggle-takeoff").forEach(el => {
+        el.onclick = () => {
+            el.nextElementSibling.classList.toggle("hidden");
+        };
+    });
+
+    document.querySelectorAll(".toggle-elevation").forEach(el => {
+        el.onclick = () => {
+            el.nextElementSibling.classList.toggle("hidden");
+        };
+    });
 }
+
 
 function enableGroupToggles() {
   document.querySelectorAll("[data-group]").forEach(header => {
@@ -745,9 +847,10 @@ async function populateTakeoffTable() {
   allTakeoffRecords = records;
   window.allTakeoffRecords = allTakeoffRecords;
 
-  currentPage = 1;  // reset to first page
+  currentPage = 1; // reset to first page
   renderPaginatedTable();
 }
+
 
 function getSkuCountFromTakeoffFields(fields) {
   // Try a few likely field names
@@ -811,8 +914,36 @@ Object.values(builderLookup).forEach(name => {
 });
 
 // Populate Branch Filter
+// Branch Filter
 const branchFilter = document.getElementById("branch-filter");
-const branches = [...new Set(allTakeoffRecords.map(r => r.fields["Division"] || "Unknown"))];
+
+// Add default "All"
+let optAll = document.createElement("option");
+optAll.value = "";
+optAll.textContent = "All Branches";
+branchFilter.appendChild(optAll);
+
+// Add actual branches
+const branches = [
+  ...new Set(
+    allTakeoffRecords
+      .map(r => {
+        let div = r.fields["Division"];
+
+        // handle lookup/multi-select/linked arrays
+        if (Array.isArray(div)) {
+          div = div[0] || "Unknown";
+        }
+
+        if (typeof div !== "string") {
+          div = "Unknown";
+        }
+
+        return div.trim();
+      })
+      .filter(b => b && b !== "Unknown")
+  )
+].sort();
 
 branches.sort().forEach(branch => {
   const opt = document.createElement("option");
@@ -820,32 +951,26 @@ branches.sort().forEach(branch => {
   opt.textContent = branch;
   branchFilter.appendChild(opt);
 });
+
 document.getElementById("search-filter").addEventListener("input", e => {
   filters.search = e.target.value;
-  renderPaginatedTable();
+window.applyFiltersAfterRender = applyAllFilters;
 });
 
 document.getElementById("builder-filter").addEventListener("change", e => {
   filters.builder = e.target.value;
-  renderPaginatedTable();
+window.applyFiltersAfterRender = applyAllFilters;
 });
 
 document.getElementById("status-filter").addEventListener("change", e => {
   filters.status = e.target.value;
-  renderPaginatedTable();
-});
-
-document.getElementById("type-filter").addEventListener("change", e => {
-  filters.type = e.target.value;
-  renderPaginatedTable();
+window.applyFiltersAfterRender = applyAllFilters;
 });
 
 document.getElementById("branch-filter").addEventListener("change", e => {
   filters.branch = e.target.value;
-  renderPaginatedTable();
+window.applyFiltersAfterRender = applyAllFilters;
 });
-
-
 });
 
 // ============================================================
@@ -885,10 +1010,13 @@ async function loadSkuPricingFromExcel() {
 
             if (!sku) return; // Skip empty rows
 
-            priceMap[sku] = {
-                vendor,
-                price
-            };
+          if (!priceMap[sku]) priceMap[sku] = {};
+
+priceMap[sku][vendor] = {
+    price,
+    vendor
+};
+
         });
         return priceMap;
 
@@ -922,6 +1050,10 @@ async function fetchTakeoffJson(recordId) {
 
     return data;
 }
+async function softRefresh() {
+    console.log("🔄 Soft refresh triggered…");
+    await populateTakeoffTable();
+}
 
 // 4. CREATE NEW REVISION RECORD
 async function createNewRevision(oldRecord, newJson, newRevision) {
@@ -948,6 +1080,12 @@ async function createNewRevision(oldRecord, newJson, newRevision) {
     });
 
     const data = await res.json();
+
+    // ⭐⭐⭐ SOFT REFRESH ADDED HERE ⭐⭐⭐
+    if (typeof populateTakeoffTable === "function") {
+        await populateTakeoffTable();
+    }
+
     return data;
 }
 
@@ -973,18 +1111,35 @@ function updateJsonPricing(importedJson, priceMap) {
     importedJson.forEach((row, idx) => {
         console.group(`SKU Row #${idx}`, row);
 
-        const sku = row.SKU || row["sku"] || row["Sku"] || null;
+      const sku = row.SKU || row["sku"] || row["Sku"] || null;
 
-        console.log("🔍 Row SKU:", sku);
+console.log("🔍 Row SKU:", sku);
 
-        if (!sku) {
-            console.warn("⚠ Missing SKU — row skipped.");
-            updated.push(row);
-            console.groupEnd();
-            return;
-        }
+if (!sku) {
+    console.warn("⚠ Missing SKU — row skipped.");
+    updated.push(row);
+    console.groupEnd();
+    return;
+}
 
-        const priceEntry = priceMap[sku];
+// ⭐ ADD THIS BLOCK HERE — VENDOR MUST EXIST
+const vendor = row.Vendor || row.vendor || row["Vendor"] || null;
+
+if (!vendor) {
+    console.log(`⚠ SKU ${sku} has no vendor — skipping price update.`);
+    row.__priceChanged = false;
+    updated.push(row);
+    console.groupEnd();
+    return;
+}
+
+
+let priceEntry = null;
+
+// Only update if vendor exists AND there is a matching vendor price
+if (vendor && priceMap[sku] && priceMap[sku][vendor]) {
+    priceEntry = priceMap[sku][vendor];
+}
 
         console.log("🔍 priceMap lookup result:", priceEntry);
 
@@ -1217,6 +1372,8 @@ document.addEventListener("DOMContentLoaded", () => {
         console.log("\n🎉 All takeoffs processed.\n");
 
         hideProgressModal();
+// 🔄 Soft refresh — re-fetch takeoffs & re-render table
+await populateTakeoffTable();
 
     });
 });
@@ -1228,12 +1385,14 @@ function groupRevisions(records) {
         const f = rec.fields;
 
         const planName = f["Takeoff Name"] || "Untitled";
-        const division = f["Division"] || "Unknown";
-        const builderId = Array.isArray(f["Builder"]) ? f["Builder"][0] : "";
-        const builderName = builderLookup[builderId] || "Unknown Builder";
+const division = f["Division"] || "Unknown";
+const builderId = Array.isArray(f["Builder"]) ? f["Builder"][0] : "";
+const builderName = builderLookup[builderId] || "Unknown Builder";
+const elevation = f["Elevations"] || f["Elevation"] || "Unknown Elevation";
 
-        // 🔥 Composite grouping key
-        const key = `${planName}__${division}__${builderName}`;
+// 🔥 Composite grouping key — elevation added!
+const key = `${planName}__${division}__${builderName}__${elevation}`;
+
 
         if (!groups[key]) {
             groups[key] = {
@@ -1260,3 +1419,4 @@ function groupRevisions(records) {
 }
 
 
+window.renderPaginatedTable = renderPaginatedTable;

@@ -106,4 +106,10 @@ export async function logActivity(activityType, details = "") {
     }
 
     console.log("✅ Activity logged successfully:", newEntry);
+    await softRefresh();
+
+}
+async function softRefresh() {
+    console.log("🔄 Soft refresh triggered…");
+    await populateTakeoffTable();
 }

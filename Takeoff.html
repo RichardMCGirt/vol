@@ -164,18 +164,6 @@
     <option value="Draft">Draft</option>
   </select>
 
-  <!-- Type -->
-  <select 
-    id="type-filter"
-    class="border border-gray-300 rounded-md px-3 py-2 text-sm"
-  >
-    <option value="">All Types</option>
-    <option value="Siding">Siding</option>
-    <option value="Columns">Columns</option>
-    <option value="Rails">Rails</option>
-    <option value="Screen Porch">Screen Porch</option>
-  </select>
-
   <!-- Branch Filter (Division) -->
   <select 
     id="branch-filter"
@@ -185,33 +173,7 @@
   </select>
 </div>
 
-
-          <select class="col-span-1 border border-gray-300 rounded-md px-3 py-2 text-sm">
-            <option>Select Type</option>
-          </select>
-        </div>
-      </div>
-<!-- Takeoff Name -->
-<label class="block text-sm font-medium mt-4">Takeoff Name</label>
-<input 
-  id="nameInput"
-  type="text"
-  class="w-full border rounded px-3 py-2 mt-1"
-  placeholder="Enter takeoff name"
-/>
-
-<!-- Takeoff Type -->
-<label class="block text-sm font-medium mt-4">Type</label>
-<select 
-  id="typeSelect"
-  class="w-full border rounded px-3 py-2 mt-1"
->
-  <option value="">Select Type</option>
-  <option value="Siding">Siding</option>
-  <option value="Columns">Columns</option>
-  <option value="Rails">Rails</option>
-  <option value="Screen Porch">Screen Porch</option>
-</select>
+       
 
 <button 
     id="update-pricing-btn"
@@ -256,23 +218,7 @@
     
     <!-- Header -->
    <thead class="border-b text-gray-500 font-semibold">
-  <tr>
-    <!-- <th class="text-left py-2 px-3">Select</th>
-    <th class="text-left py-2 px-3">Active</th>
-    <th class="text-left py-2 px-3">Takeoff Name</th>
-    <th class="text-left py-2 px-3">Type</th>
 
-
-    <th class="text-left py-2 px-3">Builder</th>
-    <th class="text-left py-2 px-3">Community</th>
-    <th class="text-left py-2 px-3">Elevations</th>
-
-    <th class="text-left py-2 px-3">Status</th>
-    <th class="text-right py-2 px-3">Total Cost</th>
-    <th class="text-right py-2 px-3">Margin</th>
-    <th class="text-right py-2 px-3">Last Updated</th>
-    <th class="text-right py-2 px-3">Actions</th> -->
-  </tr>
 </thead>
 
 
@@ -298,7 +244,7 @@
       </div>
     </div>
 </main>
-</main>
+
 
 <script>
 window.env = {

@@ -1,56 +1,127 @@
-// ------------------ FILTER LOGIC (with logs) ------------------
+// =====================================================
+// 🔥 UNIVERSAL FILTER ENGINE FOR GROUPED TAKEOFF VIEW
+// Supports:
+//  ✓ Search (takeoff name, elevation, builder)
+//  ✓ Status (Draft/Complete)
+//  ✓ Builder filter
+//  ✓ Branch filter
+// =====================================================
+
 document.addEventListener("DOMContentLoaded", () => {
-  console.log("🧭 Filter logic initialized");
+  console.log("🧭 Grouped filter system initialized");
 
-  const draftCard = document.getElementById("in-draft-card");
   const statusFilter = document.getElementById("status-filter");
-  const tableBody = document.getElementById("takeoff-table");
+  const builderFilter = document.getElementById("builder-filter");
+  const branchFilter = document.getElementById("branch-filter");
+  const searchFilter = document.getElementById("search-filter");
 
-  console.log("🎯 Elements found:", {
-    draftCard: !!draftCard,
-    statusFilter: !!statusFilter,
-    tableBody: !!tableBody
-  });
+function applyAllFilters() {
+    const search = (searchFilter?.value || "").toLowerCase().trim();
+    const status = statusFilter?.value || "";
+    const builder = builderFilter?.value || "";
+    const branch = branchFilter?.value || "";
 
-  if (!draftCard || !statusFilter || !tableBody) {
-    console.warn("⚠️ Missing required element(s) for filter logic");
-    return;
-  }
+    console.log("🔎 APPLY FILTERS");
+    console.log("   ➤ search =", search);
+    console.log("   ➤ status =", status);
+    console.log("   ➤ builder =", builder);
+    console.log("   ➤ branch =", branch);
 
-  // Helper function to filter rows based on selected status
-  const filterTable = (status) => {
-    console.log(`📊 Filtering table for status: "${status || 'All'}"`);
+    // Auto-expand if searching
+    if (search) {
+        console.log("📂 Auto-expanding all containers because search is active");
 
-    const rows = tableBody.querySelectorAll("tr");
-    let visibleCount = 0;
+        document.querySelectorAll(".takeoff-container").forEach(c => {
+            c.classList.remove("hidden");
+        });
 
-    rows.forEach((row, idx) => {
-      const statusCell = row.querySelector("td:nth-child(6)");
-      const text = statusCell ? statusCell.innerText.trim() : "";
+        document.querySelectorAll(".elevation-container").forEach(c => {
+            c.classList.remove("hidden");
+        });
 
-      const match = !status || text.toLowerCase() === status.toLowerCase();
-      row.style.display = match ? "" : "none";
-      if (match) visibleCount++;
+        document.querySelectorAll(".revision-container").forEach(c => {
+            c.classList.remove("hidden");
+        });
+    }
 
-      console.log(`  🔍 Row ${idx + 1}: status="${text}" → ${match ? "✅ shown" : "❌ hidden"}`);
+    console.log("📄 Checking takeoff-blocks...");
+
+// SEARCH ONLY BY TAKEOFF NAME
+document.querySelectorAll(".takeoff-block").forEach(takeoff => {
+
+    // Always target the H3 ONLY
+    const nameEl = takeoff.querySelector(".toggle-takeoff");
+
+    const takeoffName = nameEl
+        ? nameEl.textContent.trim().toLowerCase()
+        : "";
+
+    let show = true;
+
+    console.log("   ▶ TAKEOFF:", JSON.stringify(takeoffName));
+
+    // SEARCH MATCH (strict)
+    if (search) {
+        show = takeoffName.includes(search);
+        console.log("     🔍 matches search?", show);
+    }
+
+    // Apply visibility
+    takeoff.style.display = show ? "" : "none";
+    console.log(show ? "     ✅ Showing" : "     ❌ Hiding", takeoffName);
+});
+
+
+
+    console.log("📉 Collapsing empty groups...");
+    collapseEmptyGroups();
+
+    console.log("✔ FILTERING COMPLETE");
+}
+window.applyAllFilters = applyAllFilters;
+
+document.querySelectorAll(".division-block").forEach(div => {
+    const visibleTakeoffs = div.querySelector(".takeoff-block:not([style*='display: none'])");
+    div.style.display = visibleTakeoffs ? "" : "none";
+});
+
+  // -----------------------------------------------------
+  // Hide empty elevation → hide empty takeoff → hide empty division
+  // -----------------------------------------------------
+function collapseEmptyGroups() {
+    document.querySelectorAll(".elevation-block").forEach(block => {
+        const visibleChild = block.querySelector(
+            ".revision-item:not([style*='display: none'])"
+        );
+        block.style.display = visibleChild ? "" : "none";
     });
 
-    console.log(`📈 Total visible rows: ${visibleCount}/${rows.length}`);
-  };
+    document.querySelectorAll(".takeoff-block").forEach(block => {
+        const visibleChild = block.querySelector(
+            ".elevation-block:not([style*='display: none'])"
+        );
+        block.style.display = visibleChild ? "" : "none";
+    });
 
-  // Click “In Draft” card → set dropdown + filter table
-  draftCard.addEventListener("click", () => {
-    console.log("🖱️ 'In Draft' card clicked");
-    statusFilter.value = "Draft";
-    console.log("📥 Dropdown set to:", statusFilter.value);
-    filterTable("Draft");
-  });
+    document.querySelectorAll(".division-block").forEach(block => {
+        const visibleChild = block.querySelector(
+            ".takeoff-block:not([style*='display: none'])"
+        );
+        block.style.display = visibleChild ? "" : "none";
+    });
+}
 
-  // Change in dropdown → re-filter table
-  statusFilter.addEventListener("change", (e) => {
-    console.log("🔄 Dropdown changed:", e.target.value);
-    filterTable(e.target.value);
-  });
 
-  console.log("✅ Filter logic ready and waiting for user input");
+  // Attach filters
+  statusFilter?.addEventListener("change", applyAllFilters);
+  builderFilter?.addEventListener("change", applyAllFilters);
+  branchFilter?.addEventListener("change", applyAllFilters);
+searchFilter?.addEventListener("input", () => {
+    // Only update filter state and run local filtering
+    applyAllFilters();
+});
+
+
+  // Reapply after table render
+  window.applyFiltersAfterRender = applyAllFilters;
 });

@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SKU Database</title>
   <script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
+
 </head>
 <body class="bg-gray-50 text-gray-800 font-sans">
 
@@ -98,16 +100,26 @@
         </div>
       </div>
 
-      <div class="bg-white border border-gray-200 rounded-lg p-4">
+  <div class="flex space-x-4 mb-4">
+  
+  <!-- Vendor Filter -->
+  <select id="vendor-filter"
+          class="border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500">
+    <option value="">Filter by Vendor...</option>
+  </select>
+
+  <!-- Search -->
   <input
     id="sku-search"
     type="text"
     placeholder="Search SKUs..."
-    class="w-full mb-4 border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500 focus:outline-none"
+    class="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500"
   />
+</div>
 
-  <div class="overflow-x-auto">
-    <table class="min-w-full text-sm border-collapse border border-gray-200">
+
+<div class="overflow-y-auto overflow-x-auto max-h-[80vh]">
+<table class="min-w-max text-sm border-collapse border border-gray-200">
       <thead>
         <tr id="sku-header-row"></tr>
       </thead>
