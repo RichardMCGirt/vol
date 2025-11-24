@@ -89,7 +89,7 @@ for (const u of users) {
         activityEvents.push({
           user: name,
           email,
-          action: "Takeoff Import",
+          action: "Takeoff Imported",
           details: {
             takeoffName: "",
             plan: "",
@@ -209,7 +209,7 @@ for (const u of users) {
     case "Logout":
       return `User '${ev.user}' logged out.`;
 
-    case "Takeoff Import": {
+    case "Takeoff Imported": {
       const d = ev.details || {};
       return `
         Imported takeoff '${d.takeoffName || ""}' 

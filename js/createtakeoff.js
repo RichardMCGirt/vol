@@ -911,7 +911,7 @@ if (!isEdit && data.id) {
 const builderName =
   builderLookup[builderSelect.value] || "Unknown Builder";
 
-logActivity("Takeoff Create", {
+logActivity("Created a Takeoff", {
   takeoffName,
   builder: builderName,
   revision

@@ -1113,7 +1113,6 @@ if (!vendor) {
     return;
 }
 
-
 let priceEntry = null;
 
 // Only update if vendor exists AND there is a matching vendor price
@@ -1157,8 +1156,6 @@ const newCost = Number(
 } else {
     row.__priceChanged = false;
 }
-
-
         updated.push(row);
         console.groupEnd();
     });
@@ -1168,7 +1165,6 @@ const newCost = Number(
 
     return updated;
 }
-
 
 // ===================== PROGRESS MODAL CONTROL =====================
 function showProgressModal() {
@@ -1266,7 +1262,6 @@ document.addEventListener("DOMContentLoaded", () => {
             console.log("-------------------------------------");
 
             const recordId = selected[i];
-            console.log("📌 Current Record ID:", recordId);
 
             updateProgressUI(i + 1, selected.length, 0, 0, startTime);
 
@@ -1283,10 +1278,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const fields = existing.fields;
             const takeoffName = fields["Takeoff Name"] || "Untitled Takeoff";
-
-            console.log(`📄 Takeoff Name: ${takeoffName}`);
-            console.log("📄 Revision #:", fields["Revision #"]);
-            console.log("📄 Imported JSON length:", (fields["Imported JSON"] || "[]").length);
 
             // Parse JSON safely
             let importedJson = [];
@@ -1430,7 +1421,6 @@ const key = `${planName}__${division}__${builderName}__${elevation}`;
 
     return Object.values(groups);
 }
-
 
 window.renderPaginatedTable = renderPaginatedTable;
 // =============================

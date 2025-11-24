@@ -66,12 +66,6 @@ async function getNextRevision(planName, elevation) {
         ...json.records.map(r => Number(r.fields["Revision #"] || 0))
     ) + 1;
 }
-
-
-
-// ====================================================================
-// 📝 LOG ACTIVITY — AUTO CREATE RECORD IF NEEDED
-// ====================================================================
 // ====================================================================
 // 📝 SAFE & FIXED — LOG TAKEOFF IMPORT ACTIVITY
 // ====================================================================
@@ -131,7 +125,7 @@ async function logTakeoffImportActivity(takeoffName, elevation, nextRevision) {
 
     history.push({
         timestamp,
-        type: "Takeoff Import",
+        type: "Takeoff Imported",
         details: {
             takeoffName,
             elevation: elevation || "",
@@ -303,14 +297,56 @@ async function uploadRow(payload, takeoffName, elevation, revision, originalFile
         revision
     ).catch(err => console.warn("⚠️ Activity logging failed:", err));
 }
-// ======================================================
-//  PROCESS ONE TAKEOFF FILE (REUSABLE FOR MULTIPLE FILES)
-// ======================================================
+function normalizeBuilderName(name) {
+    return name
+        ?.toString()
+        .trim()
+        .replace(/[-‐-‒–—]/g, "-") // normalize all dash types to normal hyphen
+        .replace(/\s+/g, " ");     // collapse double spaces
+}
+
+// ====================================================================
+// 🔍 LOOKUP BUILDER
+// ====================================================================
+async function fetchBuilderRecordId(name) {
+    console.log("🔍 Searching Airtable for EXACT NAME:", JSON.stringify(name));
+
+    console.log("🧪 fetchBuilderRecordId received:", name);
+    if (!name) return null;
+
+    const encoded = encodeURIComponent(`{Client Name}='${name.replace(/'/g, "\\'")}'`);
+
+    // 👇 Using the correct Builder table ID
+    const url = `https://api.airtable.com/v0/${EBASE_ID}/tblDkASnuImCKBQyO?filterByFormula=${encoded}`;
+
+    const res = await fetch(url, {
+        headers: {
+            Authorization: `Bearer ${EAIRTABLE_API_KEY}`
+        }
+    });
+
+    if (!res.ok) {
+        console.error("❌ Builder lookup error:", await res.text());
+        return null;
+    }
+
+    const data = await res.json();
+    if (!data.records.length) {
+        console.warn("⚠️ No matching builder found:", name);
+        return null;
+    }
+name = normalizeBuilderName(name);
+
+    console.log("🆔 Builder Record ID:", data.records[0].id);
+    return data.records[0].id;
+}
+
 // ======================================================
 //  PROCESS ONE TAKEOFF FILE (REUSABLE FOR MULTIPLE FILES)
 // ======================================================
 async function processTakeoffFile(file) {
     console.log("📄 Importing:", file.name);
+
 
     const data = await file.arrayBuffer();
     const workbook = XLSX.read(data);
@@ -370,23 +406,35 @@ function getValueNextToLabel(sheet, labelText) {
 
 
     // Extract header fields
-    const planName = getValueNextToLabel(sheet, "Plan Name:");
-    const elevation = getValueNextToLabel(sheet, "Elevation:");
-    const materialType = getValueNextToLabel(sheet, "Material Type:");
+// Extract header fields
+const planName = getValueNextToLabel(sheet, "Plan Name:");
+const elevation = getValueNextToLabel(sheet, "Elevation:");
+const materialType = getValueNextToLabel(sheet, "Material Type:");
 const estimatorName = getValueNextToLabel(sheet, "Estimator:");
+let builderName = getValueNextToLabel(sheet, "Builder:");
+
+console.log("📌 BUILDER:", builderName);
+builderName = normalizeBuilderName(builderName);
+console.log("📌 Normalized Builder:", builderName);
+console.log("📌 Raw Builder from Excel:", builderName);
+
 console.log("📌 RAW EXCEL ESTIMATOR VALUE:", estimatorName);
 console.log("📌 FINAL EXTRACTED ESTIMATOR:", estimatorName);
 console.log("🔍 Calling fetchEstimatorRecordId with:", estimatorName);
 
-    console.log("📌 PLAN NAME:", planName);
-    console.log("📌 ELEVATION:", elevation);
-    console.log("📌 MATERIAL TYPE:", materialType);
-    console.log("📌 ESTIMATOR NAME:", estimatorName);
+console.log("📌 PLAN NAME:", planName);
+console.log("📌 ELEVATION:", elevation);
+console.log("📌 MATERIAL TYPE:", materialType);
+console.log("📌 ESTIMATOR NAME:", estimatorName);
+
 
     // --------------------------------------------------------------
     // Extract estimator record ID for the linked field
     // --------------------------------------------------------------
     const estimatorId = await fetchEstimatorRecordId(estimatorName);
+const builderId = await fetchBuilderRecordId(builderName);
+console.log("🔗 Builder ID:", builderId);
+
 
     // --------------------------------------------------------------
     // Extract spreadsheet rows (SKUs)
@@ -413,16 +461,26 @@ const revision = await getNextRevision(planName, elevation);
     // --------------------------------------------------------------
     // Build payload
     // --------------------------------------------------------------
-    const payload = {
+const payload = {
     fields: {
         "Takeoff Name": `${planName} - ${elevation}`,
         "Elevations": elevation,
-        "Material Type": materialType,  // keep this
-        "Estimator": estimatorId ? [estimatorId] : [],  // linked record ONLY
+        "Material Type": materialType,
+
+        // ✔ Estimator linked record
+        "Estimator": estimatorId ? [estimatorId] : [],
+
+        // ✔ Builder linked if found
+        "Builder": builderId ? [builderId] : [],
+
+        // ✔ Builder2 fallback if NOT linked
+        "Builder2": builderId ? "" : (builderName || ""),
+
         "Revision #": revision,
         "Imported JSON": JSON.stringify(parsedRows)
     }
 };
+
 
 
     console.log("📤 FINAL PAYLOAD:", payload);
